@@ -1,0 +1,16 @@
+---
+title: "Cindy Li"
+---
+
+Hi! I'm **Cindy**. Welcome to my page.
+
+### Currently learning:
+- Software Tools for Data Analysis (R)
+- Principles of Database Managegment Systems
+- Programming for Analytics
+- Ethics in Business Analytics
+
+---
+Let's Connect  <a href="https://www.linkedin.com/in/cndyli/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/LinkedIn_icon.svg/1200px-LinkedIn_icon.svg.png" width="30"> 
+
+[[![](https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/LinkedIn_icon.svg/1200px-LinkedIn_icon.svg.png#left)](https://www.linkedin.com/in/cndyli/){width=50%}]: #
