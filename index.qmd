@@ -17,7 +17,6 @@ I am a Business Analyst pursing a Master's at Baruch College.
 - Salsa & bachata
 
 ---
-Let's Connect  <a href="https://www.linkedin.com/in/cndyli/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/LinkedIn_icon.svg/1200px-LinkedIn_icon.svg.png" width="30"> 
-<a href="https://twitter.com/licjn17"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/X_icon.svg/2048px-X_icon.svg.png" width="30"> 
+Let's Connect  <a href="https://www.linkedin.com/in/cndyli/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/LinkedIn_icon.svg/1200px-LinkedIn_icon.svg.png" width="30"> <a href="https://twitter.com/licjn17"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/X_icon.svg/2048px-X_icon.svg.png" width="30"> 
 
 [[![](https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/LinkedIn_icon.svg/1200px-LinkedIn_icon.svg.png#left)](https://www.linkedin.com/in/cndyli/){width=50%}]: #
