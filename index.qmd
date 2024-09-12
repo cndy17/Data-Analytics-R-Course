@@ -6,7 +6,7 @@ Hi! I'm **Cindy**. Welcome to my page of projects!
 
 I am a Data Analyst based in NYC currently pursuing my Master's in Business Analytics with a concentration in Data Analysis.
 
-![](images/headshot.jpg){width=200}
+![](images/headshot.png){width=200}
 
 ### A little about me...
 - I've lived in 3 countries.
