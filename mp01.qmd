@@ -5,11 +5,12 @@ author: "Cindy Li"
 
 ## Introduction
 
-When I was in Japan, I got to ride some of the most efficient transit systems in the world, characterized by its punctuality, its service, and the large numbers of passengers. Here in the United States, public transit is a whole different story. At the end of this analysis, I want to figure out what the most efficient transit system in the country is. How do I define efficiency? To me, efficiency can be broken down into ridership (trips, miles, the functionality) and financial efficiency (revenue, expenses).
+When I was in Japan, I got to ride some of the most efficient transit systems in the world, characterized by its punctuality, its service, and the large numbers of passengers. Here in the United States, public transit is a whole different story. At the end of this analysis, I want to figure out what the most efficient transit system in the country is. How do I define efficiency? To me, efficiency can be broken down into ridership (trips, miles, the functionality) and financial efficiency (revenue, expenses). In this project, I will be investigating the usage and financial statistics of the US transit systems.
 
 ## Data Sets
 
-Let's dive into it by exploring the following data sets from the [Federal Transit Administration](https://www.transit.dot.gov/ntd):
+The National Transit Database (NTD) records the financial and operations of transit systems to keep track of the industry and provide public information and statistics. The data is collected by transit agencies and submitted to the Federal Administration (FTA) annually and reviewed by the FTA. The most recent and complete information available at the moment is for 2022.
+Let's dive into it by exploring the following data sets from the [FTA](https://www.transit.dot.gov/ntd/ntd-data):
 
 -   2022 Fare Revenue
 
