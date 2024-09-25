@@ -33,6 +33,7 @@ FARES <- readxl::read_xlsx("2022_fare_revenue.xlsx") |>
   filter(`Expense Type` == "Funds Earned During Period") |>
   select(-`Expense Type`)
 library(DT)
+library(dplyr)
 sample_n(FARES, 1000) |>
   DT::datatable()
 ```
@@ -51,6 +52,7 @@ EXPENSES <- readr::read_csv("2022_expenses.csv") |>
   summarize(Expenses = sum(Expenses)) |>
   ungroup()
 library(DT)
+library(dplyr)
 sample_n(EXPENSES, 1000) |>
   DT::datatable()
 ```
@@ -67,6 +69,7 @@ Here's a sample of the Financials Data.
 
 ```{r echo=FALSE, message=FALSE}
 library(DT)
+library(dplyr)
 sample_n(FINANCIALS, 1000) |>
   DT::datatable()
 ```
@@ -88,7 +91,9 @@ TRIPS <- readxl::read_xlsx("ridership.xlsx", sheet="UPT") |>
                values_to="UPT") |>
   drop_na() |>
   mutate(month=my(month))
+
 library(DT)
+library(dplyr)
 sample_n(TRIPS, 1000) |>
   DT::datatable()
 ```
@@ -114,6 +119,7 @@ MILES <- readxl::read_xlsx("ridership.xlsx", sheet="VRM") |>
   summarize(VRM = sum(VRM)) |>
   ungroup() |>
   mutate(month=my(month))
+library(dplyr)
 library(DT)
 sample_n(MILES, 1000) |>
   DT::datatable()
@@ -179,6 +185,7 @@ Now,, here's a sample of the processed Usage Data.
 
 ```{r echo=FALSE, message=FALSE}
 library(DT)
+library(dplyr)
 sample_n(USAGE, 1000) |>
   DT::datatable()
 ```
@@ -216,6 +223,7 @@ Let's take a look at the Usage and Financials data.
 
 ```{r echo=FALSE, message=FALSE}
 library(DT)
+library(dplyr)
 sample_n(USAGE_AND_FINANCIALS, 1000) |>
   DT::datatable()
 ```
