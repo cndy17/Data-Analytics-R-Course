@@ -47,5 +47,12 @@
     "title": "Cindy Li",
     "section": "",
     "text": "Hi! I’m Cindy. Welcome to my page of projects!\nI am a Data Analyst based in NYC currently pursuing my Master’s in Business Analytics with a concentration in Data Analysis.\n\n\nA little about me…\n\nI’ve lived in 3 countries.\nI previously worked at Bank of America as a Technology Analyst designing data pipelines, collaborating with both technical and non-technical teams globally.\nI got my bachelor’s from Boston College, majoring in Management Information Systems and Business Analytics, with a minor in Computer Science.\nI’m a Swiftie! Taylor Swift follows me on tumblr.\nI love to sew so I am passionate about sustainable fashion and how technology can reduce the environmental/social impacts of the fashion industry.\n\n\n\nCurrently learning:\n\nR (Software Tools for Data Analysis)\nPython (Programming for Analytics)\nSQL (Principles of Database Management Systems)\nSalsa & bachata\n\n\nLet’s Connect!"
+  },
+  {
+    "objectID": "data-projects.qmd.html",
+    "href": "data-projects.qmd.html",
+    "title": "Data Projects",
+    "section": "",
+    "text": "Fiscal Characteristics of Major US Public Transit Systems\nView Report\nAn investigation of ridership and the fiscal characteristics of US public transit authorities. In this project, I utilize dplyr operations (mutate, group_by, summarize, select, arrange, rename) in R to produce summary statistics."
   }
 ]

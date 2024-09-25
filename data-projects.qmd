@@ -1,0 +1,11 @@
+---
+title: "Data Projects"
+---
+
+### Fiscal Characteristics of Major US Public Transit Systems
+
+[![](images/logo_fta.jpg){width="100"}](https://cndy17.github.io/STA9750-2024-FALL/mp01.html)
+
+An investigation of ridership and the fiscal characteristics of US public transit authorities. In this project, I utilize dplyr operations (mutate, group_by, summarize, select, arrange, rename) in R to produce summary statistics.
+
+[View Report](https://cndy17.github.io/STA9750-2024-FALL/mp01.html)

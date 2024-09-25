@@ -12,7 +12,7 @@ website:
     search: false
     right:
       - text: "Data Projects"
-        href: "./mp01.html"
+        href: "./data-projects.html"
     
 format:
   html:
