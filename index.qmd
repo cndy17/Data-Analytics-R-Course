@@ -9,11 +9,11 @@ I am a Data Analyst based in NYC currently pursuing my Master's in Business Anal
 ![](images/headshot.png){width=200}
 
 ### A little about me...
-- I've lived in 3 countries.
-- I previously worked at Bank of America as a Technology Analyst designing data pipelines, collaborating with both technical and non-technical teams globally.
-- I got my bachelor's from Boston College majoring in Management Information Systems and Business Analytics, with a minor in Computer Science.
-- I'm a Swiftie! Taylor Swift followed me on tumblr. 
-- I love to sew so I am passionate about sustainable fashion and how technology can reduce the environmental/social impacts of the fashion industry. 
+- Ex-Bank of America Business Analyst
+- Boston College Alumna (majored in Management Information Systems and Business Analytics, with a minor in Computer Science)
+- Lived in 3 countries
+- Swiftie! Taylor Swift followed me on tumblr. 
+- I love to sew and am passionate about sustainable fashion and how technology can reduce the environmental/social impacts of the fashion industry. 
 
 ### Currently learning:
 - R (Software Tools for Data Analysis)
