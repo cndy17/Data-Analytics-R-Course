@@ -10,6 +10,9 @@ website:
   navbar:
     background: primary
     search: false
+    right:
+      - text: "Data Projects"
+        href: "./mp01.html"
     
 format:
   html:
