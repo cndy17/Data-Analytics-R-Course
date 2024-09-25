@@ -2,26 +2,27 @@
 title: "Cindy Li"
 ---
 
-Hi! I'm **Cindy**. Welcome to my page of projects! 
+Hi! I'm **Cindy**. Welcome to my page of projects!
 
 I am a Data Analyst based in NYC currently pursuing my Master's in Business Analytics with a concentration in Data Analysis.
 
-![](images/headshot.png){width=200}
+![](images/headshot.png){width="200"}
 
 ### A little about me...
-- Ex-Bank of America Business Analyst
-- Boston College Alumna (majored in Management Information Systems and Business Analytics, with a minor in Computer Science)
-- Lived in 3 countries
-- Swiftie! Taylor Swift followed me on tumblr. 
-- I love to sew and am passionate about sustainable fashion and how technology can reduce the environmental/social impacts of the fashion industry. 
+
+-   Ex-Bank of America Business Analyst
+-   Boston College Alumna (majored in Management Information Systems and Business Analytics, with a minor in Computer Science)
+-   Lived in 3 countries
+-   Swiftie! Taylor Swift followed me on tumblr.
+-   I love to sew and am passionate about sustainable fashion and how technology can reduce the environmental/social impacts of the fashion industry.
 
 ### Currently learning:
-- R (Software Tools for Data Analysis)
-- Python (Programming for Analytics)
-- SQL (Principles of Database Management Systems)
-- Salsa & bachata
 
----
-Let's Connect!  <a href="https://www.linkedin.com/in/cndyli/"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/LinkedIn_icon.svg/1200px-LinkedIn_icon.svg.png" width="30"><a href="https://twitter.com/licjn17"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/X_icon.svg/2048px-X_icon.svg.png" width="30">   
+-   R (Software Tools for Data Analysis)
+-   Python (Programming for Analytics)
+-   SQL (Principles of Database Management Systems)
+-   Salsa & bachata
 
-[[![](https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/LinkedIn_icon.svg/1200px-LinkedIn_icon.svg.png#left)](https://www.linkedin.com/in/cndyli/){width=50%}]: #
+------------------------------------------------------------------------
+
+Let's Connect! <a href="https://www.linkedin.com/in/cndyli/"><img src="https://upload.wikimedia.org/wikipedia/commons/0/06/Linkedin_circle_black-512.png" width="30"/><a href="https://github.com/cndy17"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/GitHub_Invertocat_Logo.svg/360px-GitHub_Invertocat_Logo.svg.png" width="30"/><a href="https://twitter.com/licjn17"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/X_icon.svg/2048px-X_icon.svg.png" width="30"/>
