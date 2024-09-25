@@ -242,7 +242,7 @@ Let's see what the data can tell us about public transit in the US looking at tr
 
 *MTA New York City Transit with 10832855350 total miles*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 library(dplyr)
 USAGE |> 
   group_by(Agency) |>
@@ -255,7 +255,7 @@ USAGE |>
 
 *The Bus at 49444494088 total miles*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE |>
   group_by(Mode) |>
   summarise(total_VRM = sum(vehicle_revenue_miles)) |>
@@ -267,7 +267,7 @@ USAGE |>
 
 *The Heavy Rail did with 2654864 average miles*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE |> 
   filter(month == "2024-05-01") |> 
   group_by(Mode) |> 
@@ -282,7 +282,7 @@ USAGE |>
 
 *A total of 237383777 trips were taken.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 TRIPS |> 
   filter(Mode == "HR", month == "2024-05-01") |> 
   summarise(total_trips = sum(UPT))
@@ -292,7 +292,7 @@ TRIPS |>
 
 *Ridership fell by 296864650 between April 2018 and April 2020.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 april_2020 <- USAGE |> 
   filter(Mode == "Heavy Rail") |> 
   filter(month == "2020-04-01") |> 
@@ -311,7 +311,7 @@ print(difference)
 
 *The MTA New York City Transit Heavy Rail had the most UPT in 2022 at 1793073801.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE_AND_FINANCIALS |> select(Agency, Mode, UPT) |> 
   arrange(desc(UPT))|>
   slice(1)
@@ -323,7 +323,7 @@ USAGE_AND_FINANCIALS |> select(Agency, Mode, UPT) |>
 
 *October with an average of 768205 trips.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE <- USAGE |> mutate(month_number = month(month))
 USAGE |> group_by(month_number) |> summarise(avg_UPT = mean(unlinked_passenger_trips)) |> arrange(desc(avg_UPT)) |>
   slice(1)
@@ -334,7 +334,7 @@ USAGE <- USAGE |> select(-month_number)
 
 *The New York, Jersey City, and Newark area has the greatest total UPT.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE |> group_by(metro_area) |> 
   summarise(total_UPT = sum(unlinked_passenger_trips)) |> 
   arrange(desc(total_UPT)) |> 
@@ -345,14 +345,14 @@ USAGE |> group_by(metro_area) |>
 
 *San Francisco--Oakland, CA with 13 Modes*
 
-```{r echo=FALSE, message=FALSE}
+```{r ecmessage=FALSE}
 USAGE |> group_by(metro_area) |> 
   summarise(mode_count = n_distinct(Mode)) |> 
   arrange(desc(mode_count)) |> 
   slice(1)
 ```
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 distinct(USAGE |> select(Mode, metro_area) |> filter(metro_area == "San Francisco--Oakland, CA"))
 ```
 
@@ -366,7 +366,7 @@ Farebox recovery is defined as the highest ratio of Total Fares to Expenses and 
 
 *Transit Authority of Central Kentucky Vanpool has the highest farebox recovery at 2.38.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE_AND_FINANCIALS |> select(Agency, Mode, `Total Fares`, Expenses) |> 
   mutate(farebox_recovery = `Total Fares`/Expenses) |> 
   arrange(desc(farebox_recovery))|>
@@ -377,7 +377,7 @@ USAGE_AND_FINANCIALS |> select(Agency, Mode, `Total Fares`, Expenses) |>
 
 *San Francisco Bay Area Rapid Transit District Heavy Rail has the lowest expenses per UPT at 0.396.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE_AND_FINANCIALS |> select(Agency, Mode, UPT, Expenses) |> 
   mutate(Expenses_per_UPT = Expenses/UPT) |> 
   arrange(Expenses_per_UPT)|>
@@ -388,7 +388,7 @@ USAGE_AND_FINANCIALS |> select(Agency, Mode, UPT, Expenses) |>
 
 *The highest total fares per UPT belongs to Altoona Metro Transit's Demand Response at 656 per UPT.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE_AND_FINANCIALS |> select(Agency, Mode, `Total Fares`, UPT) |> 
   mutate(Total_Fares_per_UPT = `Total Fares`/UPT) |> 
   arrange(desc(Total_Fares_per_UPT))|>
@@ -399,7 +399,7 @@ USAGE_AND_FINANCIALS |> select(Agency, Mode, `Total Fares`, UPT) |>
 
 *San Francisco Bay Area Rapid Transit District's Heavy Rail at 0.217 per VRM.*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE_AND_FINANCIALS |> select(Agency, Mode, Expenses, VRM) |> 
   mutate(Expense_VRM = Expenses/VRM) |> 
   arrange(Expense_VRM)|>
@@ -410,7 +410,7 @@ USAGE_AND_FINANCIALS |> select(Agency, Mode, Expenses, VRM) |>
 
 *Chicago Water Taxi (Wendella)'s Ferryboat at 237 total fares per VRM*
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 USAGE_AND_FINANCIALS |> select(Agency, Mode, `Total Fares`, VRM) |> 
   mutate(Fares_VRM = `Total Fares`/VRM) |>
   arrange(desc(Fares_VRM)) |>
