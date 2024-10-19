@@ -180,7 +180,7 @@ library(dplyr)
 
 get_imdb_file <- function(fname){
   fname_ext <- paste0(fname, ".csv.zip")
-  as.data.frame(readr::read_tsv(fname_ext, lazy=FALSE))
+  as.data.frame(readr::read_csv(fname_ext, lazy=FALSE))
 }
 
 NAME_BASICS <- get_imdb_file("name_basics_small")
