@@ -1,0 +1,201 @@
+---
+title: "My Document"
+format: html
+---
+
+# Data
+To do so, this project uses data made available by [Internet Movie Database (IMDb)](https://datasets.imdbws.com/). Below, I'm starting by loading the data sets from the link.
+
+```{r}
+#| label: 'get_file'
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+get_imdb_file <- function(fname){
+  fname_ext <- paste0(fname, "csv.zip")
+  as.data.frame(readr::read_tsv(fname_ext, lazy=FALSE))
+}
+readr::read_csv(unzip("Sales.zip", "Sales.csv"))
+
+get_imdb_file <- function(fname){
+  BASE_URL <- "https://datasets.imdbws.com/"
+  fname_ext <- paste0(fname, ".tsv.gz")
+  if(!file.exists(fname_ext)){
+    FILE_URL <- paste0(BASE_URL, fname_ext)
+    download.file(FILE_URL, 
+                  destfile = fname_ext)
+  }
+  as.data.frame(readr::read_tsv(fname_ext, lazy=FALSE))
+}
+```
+
+```{r}
+#| label: 'imdb_name_basics'
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+NAME_BASICS      <- get_imdb_file("name.basics")
+```
+
+```{r}
+#| label: 'imdb_title_basics'
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+TITLE_BASICS      <- get_imdb_file("title.basics")
+```
+
+```{r}
+#| label: 'imdb_title_episode'
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+TITLE_EPISODES   <- get_imdb_file("title.episode")
+```
+
+```{r}
+#| label: 'imdb_title_ratings'
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+TITLE_RATINGS    <- get_imdb_file("title.ratings")
+```
+
+```{r}
+#| label: 'imdb_title_crew'
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false 
+TITLE_CREW       <- get_imdb_file("title.crew")
+```
+
+```{r}
+#| label: 'imdb_title_principals'
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+TITLE_PRINCIPALS <- get_imdb_file("title.principals")
+```
+
+For this analysis, I will be using a subset of the data made available.
+First, in the NAME_BASICS table, I am subsetting on people with at least two “known for” credits.
+```{r}
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+NAME_BASICS <- NAME_BASICS |> 
+  # filter on names with at least 2 knownForTitles credits
+    filter(str_count(knownForTitles, ",") > 1)
+```
+
+Next, as we can see below, IMDb has a long tail of obscure movies that can be left out. 
+```{r}
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+TITLE_RATINGS |>
+    ggplot(aes(x=numVotes)) + 
+    geom_histogram(bins=30) +
+    xlab("Number of IMDB Ratings") + 
+    ylab("Number of Titles") + 
+    ggtitle("Majority of IMDB Titles Have Less than 100 Ratings") + 
+    theme_bw() + 
+    scale_x_log10(label=scales::comma) + 
+    scale_y_continuous(label=scales::comma)
+```
+
+For the purposes of this project, I only interested in titles with more than 100 ratings, which is about 25% of the entire data set.
+```{r}
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+TITLE_RATINGS |>
+    pull(numVotes) |>
+    quantile()
+```
+
+Dropping these titles will leave us with the subset of data below.
+```{r}
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+TITLE_RATINGS <- TITLE_RATINGS |>
+  # filter numVotes for only titles with greater or equal to 100 ratings
+    filter(numVotes >= 100)
+```
+
+Given the TITLE_RATINGS table was filtered, it makes sense to also apply the same filtering to the other TITLE_* tables. 
+
+```{r}
+#| message: false 
+#| warning: false
+#| cache: false
+#| eval: false
+TITLE_BASICS <- TITLE_BASICS |>
+    semi_join(TITLE_RATINGS, 
+              join_by(tconst == tconst))
+
+TITLE_CREW <- TITLE_CREW |>
+    semi_join(TITLE_RATINGS, 
+              join_by(tconst == tconst))
+
+TITLE_EPISODES_1 <- TITLE_EPISODES |>
+    semi_join(TITLE_RATINGS, 
+              join_by(tconst == tconst))
+TITLE_EPISODES_2 <- TITLE_EPISODES |>
+    semi_join(TITLE_RATINGS, 
+              join_by(parentTconst == tconst))
+
+TITLE_EPISODES <- bind_rows(TITLE_EPISODES_1,
+                            TITLE_EPISODES_2) |>
+    distinct()
+
+TITLE_PRINCIPALS <- TITLE_PRINCIPALS |>
+    semi_join(TITLE_RATINGS, join_by(tconst == tconst))
+```
+
+``` {r}
+#| label: 'get_imdb_file'
+#| message: false 
+#| warning: false
+#| cache: true
+
+library(tidyverse)
+library(dplyr)
+
+get_imdb_file <- function(fname){
+  fname_ext <- paste0(fname, ".csv.zip")
+  as.data.frame(readr::read_tsv(fname_ext, lazy=FALSE))
+}
+
+NAME_BASICS <- get_imdb_file("name_basics_small")
+TITLE_BASICS     <- get_imdb_file("title_basics_small")
+TITLE_EPISODES <- get_imdb_file("title_episodes_small")
+TITLE_RATINGS <- get_imdb_file("title_ratings_small")
+TITLE_CREW <- get_imdb_file("title_crew_small")
+TITLE_PRINCIPALS <- get_imdb_file("title_principals_small")
+```
+
+With that, the data has been narrowed down significantly. One thing to point out is that the sub-setting may result in ‘dangling’ references.
+
+I am using a sub-sampled pre-processed data because my computer was struggling to handle the full data set when rendering to Quarto. 
+
+# Exploration
+1 How many movies are in our data set? How many TV series? How many TV episodes?
+
+
