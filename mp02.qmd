@@ -816,7 +816,7 @@ What genre has produced the most “successes” since 2010?
 
 TITLE_BASICS |>
   left_join(TITLE_RATINGS, by = "tconst") |> 
-  filter(success_score >= 0.6, startYear >= 2010) |> 
+  filter(success_score >= 0.6, startYear >= 2010) |> # filter by 2010
   separate_longer_delim(genres, ",") |> 
   group_by(genres) |> 
   summarise(success_count = n()) |> 
@@ -853,4 +853,289 @@ recent_top_genres |>
   ) +
   theme_minimal() +
   theme(legend.position = "bottom")
+```
+
+## Successful Personnel in the Genre
+As I develop my team, I want to consider the benefits of pairing an older, established actor—someone with over 20 successful titles—to lend credibility and experience, alongside an up-and-coming actor who can bring fresh energy and appeal to a younger audience. This combination can create a dynamic synergy that enhances the project's overall impact.
+
+When working with NAME_BASICS, I can only have alive personnel on my team. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+
+ALIVE_NAME_BASICS <- NAME_BASICS |>
+  filter(birthYear >= 1916, is.na(deathYear)) # Can only have alive personnel on my team
+```
+
+I will aso identify titles with a success score greater than 0.6 in SUCCESSFUL_TITLES.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+#Successful Movies Dataset
+SUCCESSFUL_TITLES <- TITLE_BASICS |>
+  left_join(TITLE_RATINGS, by = "tconst") |>
+  filter(success_score >= 0.6)
+sample_n(SUCCESSFUL_TITLES, 1000) |>
+  DT::datatable()
+```
+
+## Established Actors & Actresses
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"  
+# actor
+TITLE_PRINCIPALS |>
+  filter(category == "actor") |>
+  filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
+  select(tconst, nconst) |>
+  inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
+  inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
+  filter(titleType == "movie") |>
+  group_by(primaryName) |>
+  summarise(success_count = n()) |>
+  arrange(desc(success_count)) |>
+  head(5)|>
+  gt() |> # create a display table
+  tab_header(
+    title = "Top 5 Actors"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Actor Name",
+    success_count = "Success Count"
+  )
+```
+ 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+#actress
+TITLE_PRINCIPALS |>
+filter(category == "actress") |>
+  filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
+  select(tconst, nconst) |>
+  inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
+  inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
+  filter(titleType == "movie") |>
+  group_by(primaryName) |>
+  summarise(
+    success_count = n(),
+    mean_success_score = mean(success_score, na.rm = TRUE)  # Ensure NA values are ignored
+  ) |>
+  arrange(desc(success_count), desc(mean_success_score),) |>
+  head(5) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Top 5 Actresses"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Actress Name",
+    success_count = "Success Count"
+  )
+```
+
+## Up and Coming 
+# lets say titles startyear 2010
+# actors and actresses who have successful movies
+# 5-10 Successful Titles Since 2010
+
+To find up and coming actors, I tried a couple of ways to define the criteria for "up and coming". What if we consider mean success score? We could find top scoring actors but with low success counts. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+# actor
+TITLE_PRINCIPALS |>
+  filter(category == "actor") |>
+  filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
+  select(tconst, nconst) |>
+  inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
+  inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
+  filter(titleType == "movie") |>
+  group_by(primaryName) |>
+  summarise(
+    success_count = n(),
+    mean_success_score = mean(success_score, na.rm = TRUE)  # Ensure NA values are ignored
+  ) |>
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  head(10)
+```
+
+Michael Conner Humphreys has only been in 1 film where he played young Forrest Gump. This does not seem like the best way to define up and coming. I do want someone with a higher success count. What if I limit it to between 5 and 10 successful titles. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+TITLE_PRINCIPALS |>
+  filter(category == "actor") |>
+  filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
+  select(tconst, nconst) |>
+  inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
+  inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
+  filter(titleType == "movie", startYear >=2020) |>
+  group_by(primaryName) |>
+  summarise(
+    success_count = n(),
+    mean_success_score = mean(success_score, na.rm = TRUE)  # Ensure NA values are ignored
+  ) |>
+  filter(success_count >=5 & success_count <=10) |> # 5 to 10 successful titles
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  head(10)
+```
+
+Ryan Reynolds, Matt Damon, Tom Holland, Timothee Chalamet, Dave Bautistqa... I don't think I could consider them up and coming actors. Let us adjust adjust again. It seems like the startYear lowers the success count. It only counts for recent movies and so established actors show up too because their earlier successes are not counted. Does up and coming mean young or just that their first movie was recent? I think older personell can be up and coming if they are just coming into the scene. Let's try looking at the minimum start year of their movies.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+up_and_coming <- TITLE_PRINCIPALS |>
+  filter(category == "actor") |>
+  select(tconst, nconst) |>
+  right_join(NAME_BASICS, by = "nconst") |>
+  left_join(TITLE_BASICS, by = "tconst") |>
+  left_join(TITLE_RATINGS, by = "tconst") |>
+  group_by(primaryName) |>
+  mutate(debut_year = min(startYear, na.rm = TRUE)) |>  # Get the minimum startYear for first movie they were a part of 
+  filter(success_score >= 0.6, debut_year >= 2015) |>
+  summarise(
+    success_count = n(),
+    mean_success_score = mean(success_score, na.rm = TRUE)) |>  # Ensure NA values are ignored
+  filter(success_count >= 1 & success_count <= 15) |>
+  arrange(desc(success_count), desc(mean_success_score)) |>
+  head(10)
+
+
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+# movies in the past 10 years?
+up_coming <- TITLE_PRINCIPALS |>
+  filter(category == "actor") |>
+  filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
+  select(tconst, nconst) |>
+  inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
+  inner_join(TITLE_BASICS, by = "tconst") |>
+  inner_join(TITLE_RATINGS, by = "tconst") |>
+  filter(titleType == "movie") |>
+  filter(startYear >=2014) |>
+  group_by(nconst) |>
+  mutate(success_count = n()) |>
+  mutate(mean_score = mean(success_score)) |>
+  ungroup() |>
+  filter(success_count >=1 & success_count <=5) |>
+  arrange(desc(success_count), desc(mean_score)) |>
+  select(primaryName,success_count, mean_score)
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+# actress
+TITLE_PRINCIPALS |>
+  filter(category == "actress") |>
+  filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
+  select(tconst, nconst) |>
+  inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
+  inner_join(TITLE_BASICS, by = "tconst") |>
+  filter(titleType == "movie") |>
+  group_by(primaryName) |>
+  summarise(success_count = n()) |>
+  filter(success_count >=1 & success_count <=5) |>
+  arrange(desc(success_count)) |>
+  top_n(10)
+```
+
+An actor/director pair who have been successful together
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+# Filter actors and directors first
+actors_df <- TITLE_PRINCIPALS |>
+  filter(category %in% c("actor", "actress")) |>
+  select(tconst, nconst)
+
+directors_df <- TITLE_PRINCIPALS |>
+  filter(category == "director") |>
+  select(tconst, nconst)
+
+# Join actors and directors to create combinations
+actor_director_pairs <- actors_df |>
+  inner_join(directors_df, by = "tconst", suffix = c("_actor", "_director"), relationship = "many-to-many")
+
+actor_director_names <- actor_director_pairs |>
+  inner_join(ALIVE_NAME_BASICS, by = c("nconst_actor" = "nconst"), relationship = "many-to-many") |> # join to names
+  rename(actor_name = primaryName) |>
+  inner_join(ALIVE_NAME_BASICS, by = c("nconst_director" = "nconst"), relationship = "many-to-many") |> # join to names
+  rename(director_name = primaryName) |>
+  inner_join(TITLE_BASICS, by = "tconst") |> # join with titles
+  inner_join(TITLE_RATINGS, by = "tconst") # join with ratings
+
+actor_director_names |> 
+  group_by(actor_name, director_name) |> # group by actor_name and director_name combinations
+  summarise(
+    success_count = n(), # count the number of times they've worked together
+    mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
+  filter(mean_success_score > 0.60) |>
+  arrange(desc(success_count), desc(mean_success_score)) |>
+  head(10)
+```
+
+Getting voice actors, my guess is this is due to episodes and tv series having a higher count. It may help to filter out the TV episodes.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+TITLE_BASICS |>
+  group_by(titleType) |>
+  summarize(count = n())
+
+actor_director_names |> 
+  filter(! titleType %in% c("tvEpisode", "videoGame", "video")) |> # filter out tvEpisodes so results are not skewed by number of episodes
+  group_by(actor_name, director_name) |> # group by actor_name and director_name combinations
+  summarise(
+    success_count = n(), # count the number of times they've worked together
+    mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
+  filter(mean_success_score > 0.60, success_count > 5) |>
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  head(10)
+```
+
+What about actors that do well in the drama genre?
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+actor_director_names |> 
+  filter(! titleType %in% c("tvEpisode", "videoGame", "video")) |> # filter out tvEpisodes so results are not skewed by number of episodes
+  separate_longer_delim(genres, ",") |>
+  filter(genres == "Drama") |>
+  group_by(actor_name, director_name) |> # group by actor_name and director_name combinations
+  summarise(
+    success_count = n(), # count the number of times they've worked together
+    mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
+  filter(mean_success_score > 0.60, success_count > 3) |>
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  head(10)
+```
+Peter Jackson is the director of the Hobit. We can see how franchises and a series may skew things.
+
+A pair of established actors who have had success in many genres
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+# Join actors on actors
+actor_pairs <- actors_df |>
+  inner_join(actors_df, by = "tconst", suffix = c("_actor1", "_actor2"), relationship = "many-to-many") |>
+  filter(nconst_actor1 < nconst_actor2) |> #  prevents duplicates where the order of actors is swapped (actor A, actor B vs actor B, actor A)
+  select(tconst, nconst_actor1, nconst_actor2)
+
+# Count how many successful films each actor pair has worked together on
+actor_pairs|>
+  inner_join(TITLE_RATINGS, by = "tconst") |>
+  inner_join(TITLE_BASICS, by = "tconst") |>
+  group_by(nconst_actor1, nconst_actor2) |> # group by actor pairs
+  summarise(
+    success_count = n(), # count the number of times they've worked together
+    mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
+  filter(mean_success_score > 0.60, success_count > 5) |>
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  inner_join(NAME_BASICS, by ="nconst") |>
+  head(10)
 ```
