@@ -1,10 +1,11 @@
 ---
-title: "My Document"
+title: "Proposing a Successful Film"
 format: html
 ---
 
+
 ## Data
-To do so, this project uses data made available by [Internet Movie Database (IMDb)](https://datasets.imdbws.com/). 
+This project uses data made available by [Internet Movie Database (IMDb)](https://datasets.imdbws.com/). 
 While I did intially use the full data set in my analysis, I switched over to using a sub-sampled pre-processed data because my computer was struggling to handle the full data. 
 ``` {r}
 #| label: 'get_imdb_file'
@@ -13,6 +14,7 @@ While I did intially use the full data set in my analysis, I switched over to us
 #| cache: true
 library(tidyverse)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(gt)
 
@@ -39,13 +41,15 @@ NAME_BASICS <- NAME_BASICS |>
          deathYear = as.numeric(deathYear))
 ```
 
-With that, the data has been narrowed down significantly. One thing to point out is that the sub-setting may result in ‘dangling’ references.
+With that, the data I am using has been narrowed down significantly to a smaller and manageable sub sample.
 
 ### Name Basics
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
 library(DT)
+library(dplyr)
+
 sample_n(NAME_BASICS, 1000) |>
   DT::datatable()
 ```
@@ -91,7 +95,7 @@ sample_n(TITLE_PRINCIPALS, 1000) |>
 ```
 
 ## Preliminary Exploration
-1. How many movies are in our data set? How many TV series? How many TV episodes?
+**1. How many movies are in our data set? How many TV series? How many TV episodes?**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -110,14 +114,19 @@ TITLE_BASICS |>
   )
 ```
 
-2. Who is the oldest living person in our data set?
+**2. Who is the oldest living person in our data set?**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
 NAME_BASICS |> 
   filter(is.na(deathYear)) |> # filter for those without a deathYear
   arrange(birthYear) |> 
-  slice(1)
+  slice(1) |>
+  gt() |> # create a display table
+  cols_label( # display column names
+    primaryName = "Name",
+    birthYear = "Birth Year"
+  )
 ```
 The results of this first query says Robert De Visee but Robert was born in 1655, which does not make sense at all. A quick Google search says that the oldest person alive in 2024 is 116. Given that, let us filter for people born after 1914.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
@@ -154,7 +163,7 @@ NAME_BASICS |>
 ```
 The result says Akhtar-Ul-Iman but according to Wikipedia, he died on March 9, 1996.
 
-3. There is one TV Episode in this data set with a perfect 10/10 rating and 200,000 IMDb ratings. 
+**3. There is one TV Episode in this data set with a perfect 10/10 rating and 200,000 IMDb ratings.** 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -176,10 +185,11 @@ TITLE_RATINGS |>
   )
 ```
 
-4. What four projects is the actor Mark Hammill most known for?
+**4. What four projects is the actor Mark Hammill most known for?**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
+library(tidyr)
 NAME_BASICS |> 
   filter(primaryName == "Mark Hamill") |> 
   select(knownForTitles) |> 
@@ -196,7 +206,7 @@ NAME_BASICS |>
   )
 ```
 
-5. What TV series, with more than 12 episodes, has the highest average rating?
+**5. What TV series, with more than 12 episodes, has the highest average rating?**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -225,7 +235,8 @@ TITLE_BASICS |>
   )
 ```
 
-6. The TV series Happy Days (1974-1984) gives us the common idiom “jump the shark”. The phrase comes from a controversial fifth season episode (aired in 1977) in which a lead character literally jumped over a shark on water skis. Idiomatically, it is used to refer to the moment when a once-great show becomes ridiculous and rapidly looses quality. Is it true that episodes from later seasons of Happy Days have lower average ratings than the early seasons?
+**6. Is it true that episodes from later seasons of Happy Days have lower average ratings than the early seasons?**
+The TV series Happy Days (1974-1984) gives us the common idiom “jump the shark”. The phrase comes from a controversial fifth season episode (aired in 1977) in which a lead character literally jumped over a shark on water skis. Idiomatically, it is used to refer to the moment when a once-great show becomes ridiculous and rapidly looses quality.
 
 First, I'm finding the tconst for Happy Days.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
@@ -237,7 +248,7 @@ TITLE_BASICS |>
   filter(startYear == "1974") |>
   select(tconst) # find the tconst for Happy Days
 ```
-Season 3 has the highest rating of 7.7. Seasons 1 through 4 do well in average rating. Aside from season 11, the seasons after season 5 are in the bottom half of ratings. 
+We can see below that seasons 1 through 4 do well in terms of average rating. Aside from season 11, the seasons after season 5 are all in the bottom half of ratings. Meanwhile, season 3 has the highest rating of 7.7. 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -258,7 +269,8 @@ TITLE_EPISODES |>
     avg_rating = "Average Rating"
   )
 ```
-In the plot below, we see that there is a dip in ratings in the later seasons of the show. 
+
+In the plot below, we see that there is a indeed a dip in ratings in the later seasons of the show. 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -282,6 +294,7 @@ ggplot(season_ratings, aes(x = seasonNumber, y = avg_rating)) +
   scale_x_continuous(breaks = seq(1, 11, by = 1)) +
   geom_text(aes(label=round(avg_rating, digits = 1)), vjust=0)
 ```
+
 # Quantifying Success
 Next, I will be designing a ‘success’ measure for IMDb entries, reflecting both quality and broad popular awareness. I will be adding this measure to the TITLE_RATINGS table.
 
@@ -298,6 +311,7 @@ ggplot(TITLE_RATINGS, aes(x=score)) + geom_histogram()
 ```
 
 I don't want the number of votes to throw off the score. Let's use log on numVotes and maybe I want to give more weight to the rating than the number of votes. 
+(0.6 x averageRating + 0.4 x log(numVotes)) / (0.6 x max(averageRating) + 0.4 x log(max(numVotes)))
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -362,7 +376,8 @@ TITLE_RATINGS |>
 ```
 
 Now, to check in with the people, I will choose prestige actors or directors and confirm that they have many projects with high scores on my success metric.
-Hayao Miyazaki
+
+**Hayao Miyazaki**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -385,7 +400,7 @@ NAME_BASICS |>
     numVotes = "Number of Votes"
   )
 ```  
-Christopher Nolan
+**Christopher Nolan**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -410,7 +425,7 @@ NAME_BASICS |>
   )
 ``` 
 
-Steven Spielberg
+**Steven Spielberg**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -433,7 +448,7 @@ NAME_BASICS |>
     numVotes = "Number of Votes"
   )
 ``` 
-Greta Gerwig
+**Greta Gerwig**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -456,7 +471,7 @@ NAME_BASICS |>
     numVotes = "Number of Votes"
   )
 ``` 
-Meryl Streep
+**Meryl Streep**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -481,7 +496,8 @@ NAME_BASICS |>
 ``` 
 Here, we can notice how numVotes is also taken into consideration, pushing the Devil Wears Prada to the top even though it does not have the highest Average Rating. 
 
-As another ‘spot check’ validation, let's check the scores of the highest grossing titles. The highest grossing title is Avatar.
+As another ‘spot check’ validation, let's check the scores of the highest grossing titles. 
+The highest grossing title is Avatar.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -525,6 +541,7 @@ TITLE_BASICS |>
   )
 ```
 
+## Threshold for a Solid Title
 To come up with a numerical threshold for a project to be a ‘success’ and determine a value such that movies above are all “solid” or better, I am going to use summary statistics. The 3rd Q is 0.6 and so I thinkk a score greater than 0.6 is "solid" and above the average movie. 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
@@ -694,13 +711,15 @@ recent_top_genres |>
 ## Successful Personnel in the Genre
 As I develop my team, I want to consider the benefits of pairing an older, established actor—someone with over 20 successful titles—to lend credibility and experience, alongside an up-and-coming actor who can bring fresh energy and appeal to a younger audience. This combination can create a dynamic synergy that enhances the project's overall impact.
 
-When working with NAME_BASICS, I can only have alive personnel on my team. 
+When working with NAME_BASICS, I can only have alive personnel on my team. Here, I am creating a new data frame called ALIVE_NAME_BASICS.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
 #| cache: true
 ALIVE_NAME_BASICS <- NAME_BASICS |>
   filter(birthYear >= 1916, is.na(deathYear)) # Can only have alive personnel on my team
+sample_n(ALIVE_NAME_BASICS, 1000) |>
+  DT::datatable()
 ```
 
 I will aso identify titles with a success score greater than 0.6 in SUCCESSFUL_TITLES.
@@ -717,7 +736,7 @@ sample_n(SUCCESSFUL_TITLES, 1000) |>
   DT::datatable()
 ```
 
-## Established Actors & Actresses
+### Established Actors & Actresses
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"  
@@ -730,8 +749,11 @@ TITLE_PRINCIPALS |>
   inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
   filter(titleType == "movie") |>
   group_by(primaryName) |>
-  summarise(success_count = n()) |>
-  arrange(desc(success_count)) |>
+  summarise(
+    success_count = n(),
+    mean_success_score = mean(success_score, na.rm = TRUE)  # Ensure NA values are ignored
+  ) |>
+  arrange(desc(success_count), desc(mean_success_score)) |>
   head(5)|>
   gt() |> # create a display table
   tab_header(
@@ -739,7 +761,8 @@ TITLE_PRINCIPALS |>
   ) |>
   cols_label( # display column names
     primaryName = "Actor Name",
-    success_count = "Success Count"
+    success_count = "Success Count",
+    mean_success_score = "Mean Success Score"
   )
 ```
  
@@ -759,7 +782,7 @@ filter(category == "actress") |>
     success_count = n(),
     mean_success_score = mean(success_score, na.rm = TRUE)  # Ensure NA values are ignored
   ) |>
-  arrange(desc(success_count), desc(mean_success_score),) |>
+  arrange(desc(success_count), desc(mean_success_score)) |>
   head(5) |>
   gt() |> # create a display table
   tab_header(
@@ -767,15 +790,12 @@ filter(category == "actress") |>
   ) |>
   cols_label( # display column names
     primaryName = "Actress Name",
-    success_count = "Success Count"
+    success_count = "Success Count",
+    mean_success_score = "Mean Success Score"
   )
 ```
 
-## Up and Coming 
-# lets say titles startyear 2010
-# actors and actresses who have successful movies
-# 5-10 Successful Titles Since 2010
-
+## Up and Coming Actors & Actresses
 To find up and coming actors, I tried a couple of ways to define the criteria for "up and coming". What if we consider mean success score? We could find top scoring actors but with low success counts. 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
@@ -794,10 +814,20 @@ TITLE_PRINCIPALS |>
     mean_success_score = mean(success_score, na.rm = TRUE)  # Ensure NA values are ignored
   ) |>
   arrange(desc(mean_success_score), desc(success_count)) |>
-  head(10)
+  head(5) |>
+  gt() |>
+  tab_header(
+    title = "Top Scoring Actors with Low Success Counts"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Actress Name",
+    success_count = "Success Count",
+    mean_success_score = "Mean Success Score"
+  )
 ```
 
 Michael Conner Humphreys has only been in 1 film where he played young Forrest Gump. This does not seem like the best way to define up and coming. I do want someone with a higher success count. What if I limit it to between 5 and 10 successful titles. 
+
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
@@ -815,75 +845,57 @@ TITLE_PRINCIPALS |>
   ) |>
   filter(success_count >=5 & success_count <=10) |> # 5 to 10 successful titles
   arrange(desc(mean_success_score), desc(success_count)) |>
-  head(10)
+  head(10) |>
+  gt() |>
+  tab_header(
+    title = "Actors with High Success Scores and Between 5-10 Successful Titles Since 2020"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Actress Name",
+    success_count = "Success Count",
+    mean_success_score = "Mean Success Score"
+  )
 ```
 
-Ryan Reynolds, Matt Damon, Tom Holland, Timothee Chalamet, Dave Bautistqa... I don't think I could consider them up and coming actors. Let us adjust adjust again. It seems like the startYear lowers the success count. It only counts for recent movies and so established actors show up too because their earlier successes are not counted. Does up and coming mean young or just that their first movie was recent? I think older personell can be up and coming if they are just coming into the scene. Let's try looking at the minimum start year of their movies.
+Ryan Reynolds, Matt Damon, Tom Holland, Timothee Chalamet, Dave Bautistqa... I don't think I could consider them up and coming actors. Let us adjust adjust again. It seems like the startYear lowers the success count. It only counts for recent movies and so established actors show up too because their earlier successes are not counted. Does up and coming mean young or just that their first movie was recent? I think older personell can be up and coming if they are just coming into the scene. Let's try looking at the minimum start year of their first titles
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
-#| eval: false
-up_and_coming <- TITLE_PRINCIPALS |>
+TITLE_PRINCIPALS |>
   filter(category == "actor") |>
   select(tconst, nconst) |>
-  right_join(NAME_BASICS, by = "nconst") |>
+  right_join(ALIVE_NAME_BASICS, by = "nconst") |>
   left_join(TITLE_BASICS, by = "tconst") |>
   left_join(TITLE_RATINGS, by = "tconst") |>
-  group_by(primaryName) |>
-  filter(success_score >= 0.6, min(startYear, na.rm = TRUE) >= 2015) |> # Get the minimum startYear for first movie they were a part of 
+  select(primaryName, primaryTitle, startYear, genres, success_score) |>
+  filter(success_score >= 0.6) |>  # Filter by success score
+  group_by(primaryName) |> 
   summarise(
+    debut_year = min(startYear, na.rm = TRUE),  # Compute first movie they did here
     success_count = n(),
-    mean_success_score = mean(success_score, na.rm = TRUE)) |>  # Ensure NA values are ignored
-  filter(success_count >= 1 & success_count <= 15) |>
-  arrange(desc(success_count), desc(mean_success_score)) |>
-  head(10)
-
+    mean_success_score = mean(success_score, na.rm = TRUE),
+    .groups = 'drop'
+  ) |>
+  filter(debut_year >= 2015, success_count >= 10 & success_count <= 15) |>
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  head(10) |>
+  gt() |>
+  tab_header(
+    title = "Up and Coming Actors"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Name",
+    debut_year = "Year of First Movie",
+    success_count = "Success Count",
+    mean_success_score = "Mean Success Score"
+  )
 
 ```
+Selecting Barry Keoghan from this list of up and coming actors, we can see some of his past titles. I would consider him as a potential actor for this film. 
 
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-#| code-fold: true
-#| code-summary: "Display Code" 
-#| eval: false
-# movies in the past 10 years?
-up_coming <- TITLE_PRINCIPALS |>
-  filter(category == "actor") |>
-  filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
-  select(tconst, nconst) |>
-  inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
-  inner_join(TITLE_BASICS, by = "tconst") |>
-  inner_join(TITLE_RATINGS, by = "tconst") |>
-  filter(titleType == "movie") |>
-  filter(startYear >=2014) |>
-  group_by(nconst) |>
-  mutate(success_count = n()) |>
-  mutate(mean_score = mean(success_score)) |>
-  ungroup() |>
-  filter(success_count >=1 & success_count <=5) |>
-  arrange(desc(success_count), desc(mean_score)) |>
-  select(primaryName,success_count, mean_score) 
-```
-
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-#| code-fold: true
-#| code-summary: "Display Code" 
-# actress
-TITLE_PRINCIPALS |>
-  filter(category == "actress") |>
-  filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
-  select(tconst, nconst) |>
-  inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
-  inner_join(TITLE_BASICS, by = "tconst") |>
-  filter(titleType == "movie") |>
-  group_by(primaryName) |>
-  summarise(success_count = n()) |>
-  filter(success_count >=1 & success_count <=5) |>
-  arrange(desc(success_count)) |>
-  head(10) 
-```
-
-An actor/director pair who have been successful together
+## Combinations of Personel
+**Actor/director pairs who have been successful together**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
@@ -943,7 +955,7 @@ actor_director_names |>
   head(10)
 ```
 
-What about pairs that do well in the drama genre?
+**What about pairs that do well in the drama genre?**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
@@ -961,7 +973,23 @@ actor_director_names |>
 ```
 Peter Jackson is the director of the Hobit. We can see how directors of franchises and TV series may skew the success count.
 
-A pair of established actors who have had success in many genres
+What if we look at a specific director to see what actors and actresses they work well with. For example, if I wanted Greta Gerwig. Who has she worked well with in the past? 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+actor_director_names |> 
+  filter(! titleType %in% c("tvEpisode", "videoGame", "video")) |> # filter out tvEpisodes so results are not skewed by number of episodes
+  filter(director_name == "Greta Gerwig") |>
+  group_by(actor_name, director_name) |> # group by actor_name and director_name combinations
+  summarise(
+    success_count = n(), # count the number of times they've worked together
+    mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  head(10)
+```
+
+**A pair of established actors who have had success in many genres**
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
@@ -991,19 +1019,80 @@ Identify (at least) two actors and one director who you will target as the key t
 
 
 ## Nostalgia and Remakes
-# Find a classic movie to remake with your key talent. 
-# The original should have a large number of IMDb ratings, a high average rating, and not have been remade in the past 25 years.4
+The classic movie I propose to remake is Princess Bride, directed by Greta Gerwig. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+TITLE_BASICS |>
+  filter(primaryTitle == "The Princess Bride")|>
+  inner_join(TITLE_RATINGS, by = "tconst") |>
+  select(primaryTitle, averageRating, numVotes, success_score) |>
+  gt() |>
+  tab_header(
+    title = "The Princess Bride"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "Title",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes",
+    success_score = "Success Score"
+  )
+```
 
-Once you have found your classic movie to remake, confirm whether key actors, directors, or writers from the original are still alive. 
-You may also want to include the classic actors as “fan service.”
+The original has a large number of IMDb ratings, a high average rating, and has not  been remade in the past 25 years. A Princess Bride Home Movie was created during COVID, a miniseries shot on phones from home, but a full film remake would be very successful. 
 
+Let's confirm whether key actors, directors, or writers from the original are still alive. 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+TITLE_PRINCIPALS |>
+  filter(tconst == "tt0093779") |>
+  inner_join(NAME_BASICS, by = "nconst") |>
+  select(primaryName, category, characters, deathYear) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Key Personnel"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Name",
+    category = "Role",
+    characters = "Characters",
+    deathYear = "Death Year"
+  )
+```
+
+**Director: Greta Gerwig**
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+NAME_BASICS |>
+  filter(primaryName == 'Greta Gerwig') |>
+  separate_longer_delim(knownForTitles, ",") |> 
+  left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
+  left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes) |>
+  arrange(desc(success_score)) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Greta Gerwig Project Scores"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Name",
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+```
 
 ## Elevator Pitch
 “The market for animated young adult horror musicals has grown 200% in the past decade” or “Over 90% of Director D’s movies are successes.”
 
-Strong Box Office Appeal: By casting Emma Stone and John Boyega, we leverage their proven track records; both actors have consistently delivered hits, with Emma starring in over 25 successful films and Boyega emerging as a fan favorite with a strong following.
+Strong Box Office Appeal: By casting Emma Stone and Barry Keoghan, we leverage their proven track records; both actors have consistently delivered hits, with Emma starring in over 25 successful films and Barry Keoghan emerging as an up and coming actor with growing fans and success.
 
 Nostalgia Meets Modernity: Remaking The Princess Bride, a classic with an 8.1 IMDb rating and over 800,000 ratings, taps into a well-loved story while allowing us to introduce fresh talent, including original cast cameos, to engage both longtime fans and new audiences.
+
 
 Proven Directorial Vision: With Greta Gerwig at the helm, whose films average an IMDb rating of 8.2, we ensure a balance of heartfelt storytelling and commercial success, making this project a compelling addition to the current film landscape.
 
