@@ -4,7 +4,7 @@ format: html
 ---
 
 # Data
-To do so, this project uses data made available by [Internet Movie Database (IMDb)](https://datasets.imdbws.com/). Below, I'm starting by loading the data sets from the link.
+To do so, this project uses data made available by [Internet Movie Database (IMDb)](https://datasets.imdbws.com/). Below, is my code for loading the data sets from the link.
 
 ```{r}
 #| label: 'get_file'
@@ -142,6 +142,7 @@ TITLE_RATINGS <- TITLE_RATINGS |>
 Given the TITLE_RATINGS table was filtered, it makes sense to also apply the same filtering to the other TITLE_* tables. 
 
 ```{r}
+#| code-fold: true
 #| message: false 
 #| warning: false
 #| cache: false
@@ -169,14 +170,16 @@ TITLE_PRINCIPALS <- TITLE_PRINCIPALS |>
     semi_join(TITLE_RATINGS, join_by(tconst == tconst))
 ```
 
+
+While I did intially use the full data set in my analysis, I switched over to using a sub-sampled pre-processed data because my computer was struggling to handle the full data. 
 ``` {r}
 #| label: 'get_imdb_file'
 #| message: false 
 #| warning: false
 #| cache: true
-
 library(tidyverse)
 library(dplyr)
+library(ggplot2)
 
 get_imdb_file <- function(fname){
   fname_ext <- paste0(fname, ".csv.zip")
@@ -191,11 +194,408 @@ TITLE_CREW <- get_imdb_file("title_crew_small")
 TITLE_PRINCIPALS <- get_imdb_file("title_principals_small")
 ```
 
+Below, I am converting the birth year and death year to numeric data types.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| message: false 
+#| warning: false
+#| cache: true
+NAME_BASICS <- NAME_BASICS |>
+  mutate(birthYear = as.numeric(birthYear), # numeric birth years
+         deathYear = as.numeric(deathYear))
+```
+
 With that, the data has been narrowed down significantly. One thing to point out is that the sub-setting may result in ‘dangling’ references.
 
-I am using a sub-sampled pre-processed data because my computer was struggling to handle the full data set when rendering to Quarto. 
+# Name Basics
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+library(DT)
+sample_n(NAME_BASICS, 1000) |>
+  DT::datatable()
+```
 
-# Exploration
-1 How many movies are in our data set? How many TV series? How many TV episodes?
+# Title Basics
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+sample_n(TITLE_BASICS, 1000) |>
+  DT::datatable()
+```
 
+# Title Crew
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+sample_n(TITLE_CREW, 1000) |>
+  DT::datatable()
+```
+
+# Title Episodes
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+sample_n(TITLE_EPISODES, 1000) |>
+  DT::datatable()
+```
+
+#Title Ratings
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+sample_n(TITLE_RATINGS, 1000) |>
+  DT::datatable()
+```
+
+#Title Principals
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+sample_n(TITLE_PRINCIPALS, 1000) |>
+  DT::datatable()
+```
+
+# Preliminary Exploration
+1. How many movies are in our data set? How many TV series? How many TV episodes?
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+library(tibble)
+
+TITLE_BASICS |>
+  group_by(titleType) |>
+  filter(titleType %in% c("movie", "tvSeries", "tvEpisode" )) |>
+  summarise(count = n()) |>
+  gt() |>
+  
+```
+
+2. Who is the oldest living person in our data set?
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+NAME_BASICS |> 
+  filter(is.na(deathYear)) |> # filter for those without a deathYear
+  arrange(birthYear) |> 
+  slice(1)
+```
+The results of this first query says Robert De Visee but Robert was born in 1655, which does not make sense at all. A quick Google search says that the oldest person alive in 2024 is 116. Given that, let us filter for people born after 1914.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+NAME_BASICS |> 
+  filter(is.na(deathYear)) |> # filter for those without a deathYear
+  filter(birthYear>=1914) |>
+  arrange(birthYear) |> 
+  slice(1)
+```
+Let's perform a sanity check by confirming online. The internet says Antonio Anelli died on 12 May 1977.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+NAME_BASICS |> 
+  filter(is.na(deathYear)) |> # filter for those without a deathYear
+  filter(birthYear>=1916) |>
+  arrange(birthYear) |> 
+  slice(1)
+```
+Ivy Baker born in 1916 and her bio on IMDb does not have a death year.
+
+To be safe, let's check for a year before 1916 and look at 1915.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+NAME_BASICS |> 
+  filter(is.na(deathYear)) |> # filter for those without a deathYear
+  filter(birthYear>=1915) |>
+  arrange(birthYear) |> 
+  slice(1)
+```
+The result says Akhtar-Ul-Iman but according to Wikipedia, he died on March 9, 1996.
+
+3. There is one TV Episode in this data set with a perfect 10/10 rating and 200,000 IMDb ratings. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+library(gt)
+TITLE_RATINGS |> 
+  left_join(TITLE_EPISODES, by = "tconst") |> # join using tconst
+  filter(averageRating == 10.0 & numVotes >= 200000) |> # filter by averageRating and numVotes
+  left_join(TITLE_BASICS, by = "tconst") |> # join using tconst
+  left_join(TITLE_BASICS, join_by("parentTconst" == "tconst")) |>
+  select(primaryTitle.y, primaryTitle.x, averageRating, numVotes) |> # select just the title, average rating, and number of votes
+  gt() |> # create a display table
+  tab_header(
+    title = "Perfect TV Episode"
+  ) |>
+  cols_label( # display column names
+    primaryTitle.y = "TV Show",
+    primaryTitle.x = "Episode",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+```
+
+4. What four projects is the actor Mark Hammill most known for?
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+NAME_BASICS |> 
+  filter(primaryName == "Mark Hamill") |> 
+  select(knownForTitles) |> 
+  separate_rows(knownForTitles, sep = ",") |>  # Split by comma to make each knownForTitle a row
+  left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> # join to TITLE_BASICS on tconst
+  select(primaryTitle) |> 
+  head(4) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Titles Mark Hammil is Known For"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "Title"
+  )
+```
+
+5. What TV series, with more than 12 episodes, has the highest average rating?
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+# Find the highest-rated TV series with more than 12 episodes
+# tt15613780        9.7           318 Craft Games
+
+TITLE_BASICS |>
+  filter(titleType == "tvSeries") |>
+  right_join(TITLE_EPISODES, by = c("tconst" = "parentTconst")) |>
+  group_by(tconst) |>
+  mutate(episode_count = n()) |>
+  ungroup() |>
+  filter(episode_count > 12) |>
+  left_join(TITLE_RATINGS, by = "tconst") |>
+  arrange(desc(averageRating)) |>
+  select(primaryTitle, averageRating, episode_count) |>
+  head(1) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Highest-Rated TV Series with More Than 12 Episodes"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "TV Series",
+    averageRating = "Average Rating",
+    episode_count = "Number of Episodes"
+  )
+```
+
+6. The TV series Happy Days (1974-1984) gives us the common idiom “jump the shark”. The phrase comes from a controversial fifth season episode (aired in 1977) in which a lead character literally jumped over a shark on water skis. Idiomatically, it is used to refer to the moment when a once-great show becomes ridiculous and rapidly looses quality. Is it true that episodes from later seasons of Happy Days have lower average ratings than the early seasons?
+
+First, I'm finding the tconst for Happy Days.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+TITLE_BASICS |>
+  filter(originalTitle == "Happy Days") |>
+  filter(titleType == "tvSeries") |>
+  filter(startYear == "1974") |>
+  select(tconst) # find the tconst for Happy Days
+```
+Season 3 has the highest rating of 7.7. Seasons 1 through 4 do well in average rating. Aside from season 11, the seasons after season 5 are in the bottom half of ratings. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+TITLE_EPISODES |> 
+  filter(parentTconst == "tt0070992") |> 
+  left_join(TITLE_RATINGS, join_by("tconst" )) |> 
+  group_by(seasonNumber) |> 
+  summarize(avg_rating = mean(averageRating, na.rm = TRUE)) |> 
+  mutate(seasonNumber = as.numeric(seasonNumber)) |>
+  select(seasonNumber, avg_rating) |>
+  arrange(desc(avg_rating)) |> # arrange by average rating in descending order
+  gt() |> # create a display table
+  tab_header(
+    title = "Ratings for Happy Days by Season"
+  ) |>
+  cols_label( # display column names
+    seasonNumber = "Season",
+    avg_rating = "Average Rating"
+  )
+```
+In the plot below, we see that there is a dip in ratings in the later seasons of the show. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+season_ratings <- TITLE_EPISODES |> 
+  filter(parentTconst == "tt0070992") |> 
+  left_join(TITLE_RATINGS, join_by("tconst" )) |> 
+  group_by(seasonNumber) |> 
+  summarize(avg_rating = mean(averageRating, na.rm = TRUE)) |> 
+  mutate(seasonNumber = as.numeric(seasonNumber)) |>
+  select(seasonNumber, avg_rating) |>
+  arrange(desc(seasonNumber)) # arrange by season in descending order
+
+library(ggplot2)
+# Bar chart of average ratings by season 
+ggplot(season_ratings, aes(x = seasonNumber, y = avg_rating)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Average Ratings of Happy Days by Season",
+       x = "Season Number",
+       y = "Average Rating") +
+  ylim(0,10) +
+  scale_x_continuous(breaks = seq(1, 11, by = 1)) +
+  geom_text(aes(label=round(avg_rating, digits = 1)), vjust=0)
+```
+# Quantifying Success
+Next, I will be designing a ‘success’ measure for IMDb entries, reflecting both quality and broad popular awareness. I will be adding this measure to the TITLE_RATINGS table.
+
+Initially, I did a composite score of averageRating and numVotes to consider both quality and popularity. I then divided this by the max possible score in the data population.  
+(averageRating x numVotes ) / (max(averageRating) x max(numVotes))
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+
+TITLE_RATINGS$score <- (TITLE_RATINGS$averageRating * TITLE_RATINGS$numVotes) /
+  (max(TITLE_RATINGS$averageRating) * max(TITLE_RATINGS$numVotes))
+# plot to see spread/distribution
+ggplot(TITLE_RATINGS, aes(x=score)) + geom_histogram()
+```
+
+I don't want the number of votes to throw off the score. Let's use log on numVotes and maybe I want to give more weight to the rating than the number of votes. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+
+TITLE_RATINGS$success_score <- (.6*TITLE_RATINGS$averageRating + .4*log(TITLE_RATINGS$numVotes)) /
+  (.6*max(TITLE_RATINGS$averageRating) + .4*log(max(TITLE_RATINGS$numVotes)))
+
+ggplot(TITLE_RATINGS, aes(x=success_score)) + geom_histogram() +
+  labs(title = "Success Score Distribution",
+       x = "Success Score",
+       y = "Frequency")
+
+```
+
+Now that there is a success score, let's validate the metric with a number of tests and see how it holds up.
+First, I'm confirming that the the top 5-10 movies based on my metric were indeed box office successes.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+TITLE_RATINGS |> 
+  arrange(desc(success_score)) |>  
+  left_join(TITLE_BASICS, join_by("tconst" )) |> 
+  filter(titleType == 'movie') |> 
+  select(primaryTitle, success_score, averageRating, numVotes) |>
+  head(10) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Most Successful Movies"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    avgerageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+```
+# The Shawshank Redemption at .93
+# The Dark Knight .90
+# The Godfather .90
+# Lord of the Rings: The Return of the King
+# Pulp Fiction
+# Inception
+# The Lord of the Rings: The Fellowship of the Ring
+# Fight Club
+# Forrest Gump
+# Schindler's List
+  
+Next, let's use the success metric to find movies with large numbers of IMDb votes that score poorly  and confirm that they are indeed of low quality.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+summary(TITLE_RATINGS$numVotes)
+# Mean is 4022
+
+TITLE_RATINGS |> 
+  arrange(success_score) |> # arrage ascending
+  left_join(TITLE_BASICS, join_by("tconst" )) |> 
+  filter(titleType == 'movie') |>
+  filter(numVotes >= 4022) |>
+  head(5) # select bottom 5
+```
+# 321 Action 1/10 10K votes
+# Jurrasic Shark
+# Birdemic 2
+
+# Choose a prestige actor or director and confirm that they have many projects with high scores on your success metric.
+# Hayao Miyazaki
+
+NAME_BASICS |>
+  filter(primaryName == 'Hayao Miyazaki') |>
+  separate_longer_delim(knownForTitles, ",") |> 
+  left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
+  left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
+  
+# Christopher Nolan
+NAME_BASICS |>
+filter(primaryName == 'Christopher Nolan') |>
+  separate_longer_delim(knownForTitles, ",") |> 
+  left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
+  left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
+
+# Steven Spielberg
+NAME_BASICS |>
+  filter(primaryName == 'Steven Spielberg') |>
+  separate_longer_delim(knownForTitles, ",") |> 
+  left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
+  left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
+
+# Greta Gerwig
+NAME_BASICS |>
+  filter(primaryName == 'Greta Gerwig') |>
+  separate_longer_delim(knownForTitles, ",") |> 
+  left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
+  left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
+
+# Meryl Streep
+NAME_BASICS |>
+  filter(primaryName == 'Meryl Streep') |>
+  separate_longer_delim(knownForTitles, ",") |> 
+  left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
+  left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
+
+# feels like a low score
+# notice how numVotes is also taken into consideration 
+# where The Devil Wears Prada with more votes has higher log success score than a higher averagerating and fewer numVotes
+
+# Perform at least one other form of ‘spot check’ validation.
+# highest grossing title is Avatar - score of .75
+TITLE_BASICS |>
+  filter(originalTitle == 'Avatar') |>
+  filter(titleType == 'movie') |>
+  left_join(TITLE_RATINGS, join_by("tconst")) |>
+  select(primaryTitle, success_score, averageRating, numVotes)
+
+# second is Avengers: Endgame - score of .79
+TITLE_BASICS |>
+  filter(originalTitle == 'Avengers: Endgame') |>
+  filter(titleType == 'movie') |>
+  left_join(TITLE_RATINGS, join_by("tconst")) |>
+  select(primaryTitle, success_score, averageRating, numVotes)
+
+TITLE_BASICS |>
+  filter(titleType == 'movie') |>
+  left_join(TITLE_RATINGS, join_by("tconst")) |>
+  arrange(desc(success_score)) |>
+  head(20)
+
+# Come up with a numerical threshold for a project to be a ‘success’; 
+# that is, determine a value such that movies above are all “solid” or better.
+ggplot(TITLE_RATINGS, aes(x=success_score)) + geom_histogram()
+summary(TITLE_RATINGS$success_score)
+# 3rd Q is 0.6
+# greater than 0.6 is solid
 
