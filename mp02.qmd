@@ -3,7 +3,7 @@ title: "My Document"
 format: html
 ---
 
-# Data
+## Data
 To do so, this project uses data made available by [Internet Movie Database (IMDb)](https://datasets.imdbws.com/). Below, is my code for loading the data sets from the link.
 
 ```{r}
@@ -206,7 +206,7 @@ NAME_BASICS <- NAME_BASICS |>
 
 With that, the data has been narrowed down significantly. One thing to point out is that the sub-setting may result in ‘dangling’ references.
 
-# Name Basics
+### Name Basics
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -215,7 +215,7 @@ sample_n(NAME_BASICS, 1000) |>
   DT::datatable()
 ```
 
-# Title Basics
+### Title Basics
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -223,7 +223,7 @@ sample_n(TITLE_BASICS, 1000) |>
   DT::datatable()
 ```
 
-# Title Crew
+### Title Crew
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -231,7 +231,7 @@ sample_n(TITLE_CREW, 1000) |>
   DT::datatable()
 ```
 
-# Title Episodes
+### Title Episodes
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -239,7 +239,7 @@ sample_n(TITLE_EPISODES, 1000) |>
   DT::datatable()
 ```
 
-#Title Ratings
+### Title Ratings
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -247,7 +247,7 @@ sample_n(TITLE_RATINGS, 1000) |>
   DT::datatable()
 ```
 
-#Title Principals
+### Title Principals
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -255,19 +255,24 @@ sample_n(TITLE_PRINCIPALS, 1000) |>
   DT::datatable()
 ```
 
-# Preliminary Exploration
+## Preliminary Exploration
 1. How many movies are in our data set? How many TV series? How many TV episodes?
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
-library(tibble)
-
+library(gt)
 TITLE_BASICS |>
   group_by(titleType) |>
   filter(titleType %in% c("movie", "tvSeries", "tvEpisode" )) |>
   summarise(count = n()) |>
-  gt() |>
-  
+  gt() |> # create a display table
+  tab_header(
+    title = "Number of Title Types"
+  ) |>
+  cols_label( # display column names
+    titleType = "Type",
+    count = "Count"
+  )
 ```
 
 2. Who is the oldest living person in our data set?
@@ -318,7 +323,6 @@ The result says Akhtar-Ul-Iman but according to Wikipedia, he died on March 9, 1
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
-library(gt)
 TITLE_RATINGS |> 
   left_join(TITLE_EPISODES, by = "tconst") |> # join using tconst
   filter(averageRating == 10.0 & numVotes >= 200000) |> # filter by averageRating and numVotes
@@ -473,9 +477,7 @@ ggplot(TITLE_RATINGS, aes(x=success_score)) + geom_histogram() +
 
 ```
 
-Now that there is a success score, let's validate the metric with a number of tests and see how it holds up.
-First, I'm confirming that the the top 5-10 movies based on my metric were indeed box office successes.
-
+Now that there is a success score, let's validate the metric with a number of tests and see how it holds up. First, I'm confirming that the the top 5-10 movies based on my metric were indeed box office successes. 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -492,110 +494,363 @@ TITLE_RATINGS |>
   cols_label( # display column names
     primaryTitle = "Title",
     success_score = "Success Score",
-    avgerageRating = "Average Rating",
+    averageRating = "Average Rating",
     numVotes = "Number of Votes"
   )
+
 ```
-# The Shawshank Redemption at .93
-# The Dark Knight .90
-# The Godfather .90
-# Lord of the Rings: The Return of the King
-# Pulp Fiction
-# Inception
-# The Lord of the Rings: The Fellowship of the Ring
-# Fight Club
-# Forrest Gump
-# Schindler's List
   
 Next, let's use the success metric to find movies with large numbers of IMDb votes that score poorly  and confirm that they are indeed of low quality.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
 summary(TITLE_RATINGS$numVotes)
-# Mean is 4022
 
 TITLE_RATINGS |> 
   arrange(success_score) |> # arrage ascending
   left_join(TITLE_BASICS, join_by("tconst" )) |> 
   filter(titleType == 'movie') |>
-  filter(numVotes >= 4022) |>
-  head(5) # select bottom 5
+  filter(numVotes >= 4022) |> # Mean numVotes is 4022
+  select(primaryTitle, success_score, averageRating, numVotes) |>
+  head(5) |> # select bottom 5
+  gt() |> # create a display table
+  tab_header(
+    title = "Least Successful Movies"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
 ```
-# 321 Action 1/10 10K votes
-# Jurrasic Shark
-# Birdemic 2
 
-# Choose a prestige actor or director and confirm that they have many projects with high scores on your success metric.
-# Hayao Miyazaki
-
+Now, to check in with the people, I will choose prestige actors or directors and confirm that they have many projects with high scores on my success metric.
+Hayao Miyazaki
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
 NAME_BASICS |>
   filter(primaryName == 'Hayao Miyazaki') |>
   separate_longer_delim(knownForTitles, ",") |> 
   left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
   left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
-  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
-  
-# Christopher Nolan
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes) |>
+  arrange(desc(success_score)) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Hayao Miyazaki Project Scores"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Name",
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+```  
+Christopher Nolan
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
 NAME_BASICS |>
-filter(primaryName == 'Christopher Nolan') |>
+  filter(primaryName == 'Christopher Nolan') |>
   separate_longer_delim(knownForTitles, ",") |> 
   left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
   left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
-  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
+  filter(!is.na(primaryTitle)) |>
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes) |>
+  arrange(desc(success_score)) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Christopher Nolan Project Scores"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Name",
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+``` 
 
-# Steven Spielberg
+Steven Spielberg
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
 NAME_BASICS |>
   filter(primaryName == 'Steven Spielberg') |>
   separate_longer_delim(knownForTitles, ",") |> 
   left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
   left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
-  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
-
-# Greta Gerwig
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes) |>
+  arrange(desc(success_score)) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Steven Spielberg Project Scores"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Name",
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+``` 
+Greta Gerwig
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
 NAME_BASICS |>
   filter(primaryName == 'Greta Gerwig') |>
   separate_longer_delim(knownForTitles, ",") |> 
   left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
   left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
-  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
-
-# Meryl Streep
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes) |>
+  arrange(desc(success_score)) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Greta Gerwig Project Scores"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Name",
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+``` 
+Meryl Streep
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
 NAME_BASICS |>
   filter(primaryName == 'Meryl Streep') |>
   separate_longer_delim(knownForTitles, ",") |> 
   left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
   left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
-  select(primaryName, primaryTitle, success_score, averageRating, numVotes)
+  select(primaryName, primaryTitle, success_score, averageRating, numVotes) |>
+  arrange(desc(success_score)) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Meryl Streep Project Scores"
+  ) |>
+  cols_label( # display column names
+    primaryName = "Name",
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+``` 
+Here, we can notice how numVotes is also taken into consideration, pushing the Devil Wears Prada to the top even though it does not have the highest Average Rating. 
 
-# feels like a low score
-# notice how numVotes is also taken into consideration 
-# where The Devil Wears Prada with more votes has higher log success score than a higher averagerating and fewer numVotes
-
-# Perform at least one other form of ‘spot check’ validation.
+As another ‘spot check’ validation, let's check the scores of the highest grossing titles. The highest grossing title is Avatar.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
 # highest grossing title is Avatar - score of .75
 TITLE_BASICS |>
   filter(originalTitle == 'Avatar') |>
   filter(titleType == 'movie') |>
   left_join(TITLE_RATINGS, join_by("tconst")) |>
-  select(primaryTitle, success_score, averageRating, numVotes)
+  select(primaryTitle, success_score, averageRating, numVotes) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Avatar"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+```
 
+The second highest grossing is Avengers: Endgame. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
 # second is Avengers: Endgame - score of .79
 TITLE_BASICS |>
   filter(originalTitle == 'Avengers: Endgame') |>
   filter(titleType == 'movie') |>
   left_join(TITLE_RATINGS, join_by("tconst")) |>
-  select(primaryTitle, success_score, averageRating, numVotes)
+  select(primaryTitle, success_score, averageRating, numVotes) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Avengers: Endgame"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+```
 
-TITLE_BASICS |>
-  filter(titleType == 'movie') |>
-  left_join(TITLE_RATINGS, join_by("tconst")) |>
-  arrange(desc(success_score)) |>
-  head(20)
-
-# Come up with a numerical threshold for a project to be a ‘success’; 
-# that is, determine a value such that movies above are all “solid” or better.
+To come up with a numerical threshold for a project to be a ‘success’ and determine a value such that movies above are all “solid” or better, I am going to use summary statistics. The 3rd Q is 0.6 and so I thinkk a score greater than 0.6 is "solid" and above the average movie. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
 ggplot(TITLE_RATINGS, aes(x=success_score)) + geom_histogram()
 summary(TITLE_RATINGS$success_score)
-# 3rd Q is 0.6
-# greater than 0.6 is solid
+```
 
+## Examining Success by Genre and Decade
+In this section, we explore the interplay between film genres and their success across different decades, aiming to uncover trends that can inform a future project. By analyzing the performance of various genres over time, we can identify promising opportunities for an upcoming film. 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+# highest average score
+# Biography, Adventure, Animation
+TITLE_BASICS |>
+  left_join(TITLE_RATINGS, by = "tconst") |>  # Corrected join syntax
+  separate_longer_delim(genres, ",") |> 
+  group_by(genres) |>  # Group by genres
+  summarise(avg_score = mean(success_score, na.rm = TRUE)) |>
+  ungroup() |>
+  arrange(desc(avg_score)) |>
+  head(5)  |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Genres with Top 10 Average Success Scores"
+  ) |>
+  cols_label( # display column names
+    genres = "Genre",
+    avg_score = "Average Success Score"
+  )
+```
+The average success scores for the various genres seem fairly close to each other. Instead, we can count the number of success scores greater than the threshold of 0.6 for each genre.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+# Drama, Comedy, Action
+TITLE_BASICS |>
+  left_join(TITLE_RATINGS, by = "tconst") |>  # Corrected join syntax
+  filter(success_score >= 0.6) |> # greater than threshold
+  separate_longer_delim(genres, ",") |> 
+  group_by(genres) |>  # Group by genres
+  summarise(success_count = n()) |>
+  ungroup() |>
+  arrange(desc(success_count)) |>
+  head(5) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Genres with Top 10 Average Success Scores"
+  ) |>
+  cols_label( # display column names
+    genres = "Genre",
+    success_count = "Number of Success Scores > 0.60"
+  )
+```
+What was the genre with the most “successes” in each decade? What genre consistently has the most “successes”? 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+# Success by genre and decade
+success_by_decade <- TITLE_BASICS |>
+  left_join(TITLE_RATINGS, by = "tconst") |> 
+  filter(success_score >= 0.6) |> 
+  mutate(decade = floor(as.integer(startYear) / 10) * 10) |>  # Create a decade column
+  separate_longer_delim(genres, ",") |> 
+  group_by(decade, genres) |> 
+  summarise(success_count = n()) |> 
+  ungroup() |>
+  arrange(decade, desc(success_count)) 
+
+# Find the genre with the most successes in each decade
+top_genre_per_decade <- success_by_decade |>
+  group_by(decade) |> 
+  slice_max(success_count, n = 1) # select top performing
+
+# Count how many times each genre is the highest in each decade
+top_genre_per_decade |>
+  group_by(genres) |> 
+  summarise(highest_count = n()) |> 
+  arrange(desc(highest_count)) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Number of Times Genres Had the Most Successes of a Decade"
+  ) |>
+  cols_label( # display column names
+    genres = "Genre",
+    highest_count = "Frequency"
+  )
+```
+
+What genre used to reliably produced “successes” and has fallen out of favor?
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+library(ggrepel)
+library(ggplot2)
+
+genre_success <- TITLE_BASICS |>
+  inner_join(TITLE_RATINGS, by = "tconst") |>
+  filter(success_score > 0.6) |>  # Set your success threshold
+  filter(!is.na(startYear) & !is.na(success_score)) |>
+  separate_longer_delim(genres, ",") |> 
+  group_by(genres, startYear) |>
+  summarise(success_count = n())
+
+genre_success |>
+  ggplot(aes(x = startYear, y = success_count, color = genres)) +
+  geom_line(size = 0.5) +       # Use lines to connect points
+  geom_point(size = 1) +      # Add points for each data point
+  labs(
+    title = "Count of Successful Movies by Genre Over Time",
+    x = "Year",
+    y = "Count of Successful Movies",
+    color = "Genre"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+What genre has produced the most “successes” since 2010? 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+
+TITLE_BASICS |>
+  left_join(TITLE_RATINGS, by = "tconst") |> 
+  filter(success_score >= 0.6, startYear >= 2010) |> 
+  separate_longer_delim(genres, ",") |> 
+  group_by(genres) |> 
+  summarise(success_count = n()) |> 
+  ungroup() |>
+  arrange(desc(success_count)) |>
+  head(5) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Success Count by Genre"
+  ) |>
+  cols_label( # display column names
+    genres = "Genre",
+    success_count = "Success Count"
+  )
+
+recent_top_genres <- TITLE_BASICS |>
+  left_join(TITLE_RATINGS, by = "tconst") |> 
+  filter(success_score >= 0.6, startYear >= 2010) |> 
+  separate_longer_delim(genres, ",") |> 
+  group_by(genres) |> 
+  summarise(success_count = n()) |> 
+  ungroup() |>
+  arrange(desc(success_count)) |>
+  head(5)
+
+recent_top_genres |>
+  ggplot(aes(x = genres, y = success_count, fill = genres)) +
+  geom_bar(stat="identity") +
+  labs(
+    title = "Count of Successful Movies by Genre Over Time",
+    x = "Year",
+    y = "Count of Successful Movies",
+    color = "Genre"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
