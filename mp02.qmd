@@ -382,7 +382,7 @@ Now, to check in with the people, I will choose prestige actors or directors and
 #| code-fold: true
 #| code-summary: "Display Code"
 NAME_BASICS |>
-  filter(primaryName == 'Hayao Miyazaki') |>
+  filter(primaryName == 'Rob Reiner') |>
   separate_longer_delim(knownForTitles, ",") |> 
   left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
   left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
@@ -390,7 +390,7 @@ NAME_BASICS |>
   arrange(desc(success_score)) |>
   gt() |> # create a display table
   tab_header(
-    title = "Hayao Miyazaki Project Scores"
+    title = "Rob Reiner Project Scores"
   ) |>
   cols_label( # display column names
     primaryName = "Name",
@@ -662,7 +662,7 @@ genre_success |>
   theme(legend.position = "bottom")
 ```
 
-What genre has produced the most “successes” since 2010? 
+What genre has produced the most “successes” since 2010? It seems that many films just get counted as Dramas with 32923 Dramas.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -700,18 +700,65 @@ recent_top_genres |>
   geom_bar(stat="identity") +
   labs(
     title = "Count of Successful Movies by Genre Over Time",
-    x = "Year",
+    x = "Genre",
     y = "Count of Successful Movies",
     color = "Genre"
   ) +
   theme_minimal() +
   theme(legend.position = "bottom")
 ```
+Within the Drama genre,  what were the most successful movies? It turns out the top movies we saw before all fall within the Drama genre as well.  
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+TITLE_RATINGS |> 
+  arrange(desc(success_score)) |>  
+  left_join(TITLE_BASICS, join_by("tconst" )) |> 
+  filter(titleType == 'movie') |> 
+  separate_longer_delim(genres, ",") |> 
+  filter(genres == "Drama") |>
+  select(primaryTitle, success_score, averageRating, numVotes) |>
+  head(10) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Most Successful Drama Movies"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
 
+```
+What about the second most successful genre, Comedy?
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+TITLE_RATINGS |> 
+  arrange(desc(success_score)) |>  
+  left_join(TITLE_BASICS, join_by("tconst" )) |> 
+  filter(titleType == 'movie') |> 
+  separate_longer_delim(genres, ",") |> 
+  filter(genres == "Comedy") |>
+  select(primaryTitle, success_score, averageRating, numVotes) |>
+  head(5) |>
+  gt() |> # create a display table
+  tab_header(
+    title = "Most Successful Comedy Movies"
+  ) |>
+  cols_label( # display column names
+    primaryTitle = "Title",
+    success_score = "Success Score",
+    averageRating = "Average Rating",
+    numVotes = "Number of Votes"
+  )
+
+```
 ## Successful Personnel in the Genre
 As I develop my team, I want to consider the benefits of pairing an older, established actor—someone with over 20 successful titles—to lend credibility and experience, alongside an up-and-coming actor who can bring fresh energy and appeal to a younger audience. This combination can create a dynamic synergy that enhances the project's overall impact.
 
-When working with NAME_BASICS, I can only have alive personnel on my team. Here, I am creating a new data frame called ALIVE_NAME_BASICS.
+When working with `NAME_BASICS`, I can only have alive personnel on my team. Here, I am creating a new data frame called `ALIVE_NAME_BASICS`.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -722,7 +769,7 @@ sample_n(ALIVE_NAME_BASICS, 1000) |>
   DT::datatable()
 ```
 
-I will aso identify titles with a success score greater than 0.6 in SUCCESSFUL_TITLES.
+I will aso identify titles with a success score greater than 0.6 in `SUCCESSFUL_TITLES`.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
@@ -736,7 +783,7 @@ sample_n(SUCCESSFUL_TITLES, 1000) |>
   DT::datatable()
 ```
 
-### Established Actors & Actresses
+### Established Drama Actors & Actresses
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"  
@@ -748,16 +795,19 @@ TITLE_PRINCIPALS |>
   inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
   inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
   filter(titleType == "movie") |>
+  separate_longer_delim(genres, ",") |> 
+  filter(genres == "Drama") |>
   group_by(primaryName) |>
   summarise(
     success_count = n(),
     mean_success_score = mean(success_score, na.rm = TRUE)  # Ensure NA values are ignored
   ) |>
-  arrange(desc(success_count), desc(mean_success_score)) |>
+  filter(success_count >= 20) |>
+  arrange(desc(mean_success_score), desc(success_count)) |>
   head(5)|>
   gt() |> # create a display table
   tab_header(
-    title = "Top 5 Actors"
+    title = "Top 5 Drama Actors"
   ) |>
   cols_label( # display column names
     primaryName = "Actor Name",
@@ -768,28 +818,31 @@ TITLE_PRINCIPALS |>
  
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
-#| code-summary: "Display Code" 
-#actress
+#| code-summary: "Display Code"  
+# actor
 TITLE_PRINCIPALS |>
-filter(category == "actress") |>
+  filter(category == "actress") |>
   filter(tconst %in% SUCCESSFUL_TITLES$tconst) |>
   select(tconst, nconst) |>
   inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
   inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
   filter(titleType == "movie") |>
+  separate_longer_delim(genres, ",") |> 
+  filter(genres == "Drama") |>
   group_by(primaryName) |>
   summarise(
     success_count = n(),
     mean_success_score = mean(success_score, na.rm = TRUE)  # Ensure NA values are ignored
   ) |>
-  arrange(desc(success_count), desc(mean_success_score)) |>
-  head(5) |>
+  filter(success_count >= 20) |>
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  head(5)|>
   gt() |> # create a display table
   tab_header(
-    title = "Top 5 Actresses"
+    title = "Top 5 Drama Actresses"
   ) |>
   cols_label( # display column names
-    primaryName = "Actress Name",
+    primaryName = "Actor Name",
     success_count = "Success Count",
     mean_success_score = "Mean Success Score"
   )
@@ -808,6 +861,8 @@ TITLE_PRINCIPALS |>
   inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
   inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
   filter(titleType == "movie") |>
+  separate_longer_delim(genres, ",") |> 
+  filter(genres == "Drama") |>
   group_by(primaryName) |>
   summarise(
     success_count = n(),
@@ -820,7 +875,7 @@ TITLE_PRINCIPALS |>
     title = "Top Scoring Actors with Low Success Counts"
   ) |>
   cols_label( # display column names
-    primaryName = "Actress Name",
+    primaryName = "Actor Name",
     success_count = "Success Count",
     mean_success_score = "Mean Success Score"
   )
@@ -837,6 +892,8 @@ TITLE_PRINCIPALS |>
   select(tconst, nconst) |>
   inner_join(ALIVE_NAME_BASICS, by = "nconst") |>
   inner_join(SUCCESSFUL_TITLES, by = "tconst") |>
+  separate_longer_delim(genres, ",") |> 
+  filter(genres == "Drama") |>
   filter(titleType == "movie", startYear >=2020) |>
   group_by(primaryName) |>
   summarise(
@@ -857,7 +914,7 @@ TITLE_PRINCIPALS |>
   )
 ```
 
-Ryan Reynolds, Matt Damon, Tom Holland, Timothee Chalamet, Dave Bautistqa... I don't think I could consider them up and coming actors. Let us adjust adjust again. It seems like the startYear lowers the success count. It only counts for recent movies and so established actors show up too because their earlier successes are not counted. Does up and coming mean young or just that their first movie was recent? I think older personell can be up and coming if they are just coming into the scene. Let's try looking at the minimum start year of their first titles
+Tom Hanks... I don't think I could consider him an up and coming actor. Let us adjust again. It seems like the startYear lowers the success count. It only counts for recent movies and so established actors show up too because their earlier successes are not counted. Does up and coming mean young or just that their first movie was recent? I think older personell can be up and coming if they are just coming into the scene. Let's try looking at the minimum start year of their first titles and actors with a number of successes. 
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
@@ -868,18 +925,20 @@ TITLE_PRINCIPALS |>
   right_join(ALIVE_NAME_BASICS, by = "nconst") |>
   left_join(TITLE_BASICS, by = "tconst") |>
   left_join(TITLE_RATINGS, by = "tconst") |>
+  separate_longer_delim(genres, ",") |> 
+  filter(genres == "Drama", titleType == "movie") |>
   select(primaryName, primaryTitle, startYear, genres, success_score) |>
   filter(success_score >= 0.6) |>  # Filter by success score
-  group_by(primaryName) |> 
+  group_by(primaryName) |>  # group by actor
   summarise(
     debut_year = min(startYear, na.rm = TRUE),  # Compute first movie they did here
-    success_count = n(),
-    mean_success_score = mean(success_score, na.rm = TRUE),
+    success_count = n(), # count succeses 
+    mean_success_score = mean(success_score, na.rm = TRUE), # find mean success score
     .groups = 'drop'
   ) |>
-  filter(debut_year >= 2015, success_count >= 10 & success_count <= 15) |>
+  filter(debut_year >= 2015, success_count >= 5 & success_count <= 10) |>
   arrange(desc(mean_success_score), desc(success_count)) |>
-  head(10) |>
+  head(5) |>
   gt() |>
   tab_header(
     title = "Up and Coming Actors"
@@ -892,9 +951,9 @@ TITLE_PRINCIPALS |>
   )
 
 ```
-Selecting Barry Keoghan from this list of up and coming actors, we can see some of his past titles. I would consider him as a potential actor for this film. 
+Selecting Anthony Ramos, Noah Jupe, and Barry Keoghan from this list, I would consider them lesser known actors who were a part of successful films.
 
-## Combinations of Personel
+## Combinations of Personnel
 **Actor/director pairs who have been successful together**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
@@ -931,7 +990,7 @@ actor_director_names |>
   head(10)
 ```
 
-I am getting mostly voice actors in the result above. My guess is this is due to episodes and tv series having a higher count. It may help to filter out the TV episodes.
+I am getting mostly voice actors in the result above. My guess is this is due to episodes and tv series having a higher count. It may help to filter out the TV episodes. We can see how directors of  TV series that work with the same actors multiple times may skew the success count.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
@@ -940,12 +999,14 @@ TITLE_BASICS |>
   summarize(count = n())
 ```
 
-### Top 10 Actor/Actress and Director Pairs
+**Top 10 Actor/Actress and Director Pairs in Drama Genre**
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
 actor_director_names |> 
-  filter(! titleType %in% c("tvEpisode", "videoGame", "video")) |> # filter out tvEpisodes so results are not skewed by number of episodes
+  filter(titleType == "movie") |> # filter for movies so results are not skewed by number of episodes
+  separate_longer_delim(genres, ",") |>
+  filter(genres == "Drama") |> # filter by Drama
   group_by(actor_name, director_name) |> # group by actor_name and director_name combinations
   summarise(
     success_count = n(), # count the number of times they've worked together
@@ -955,71 +1016,93 @@ actor_director_names |>
   head(10)
 ```
 
-**What about pairs that do well in the drama genre?**
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-#| code-fold: true
-#| code-summary: "Display Code" 
-actor_director_names |> 
-  filter(! titleType %in% c("tvEpisode", "videoGame", "video")) |> # filter out tvEpisodes so results are not skewed by number of episodes
-  separate_longer_delim(genres, ",") |>
-  filter(genres == "Drama") |>
-  group_by(actor_name, director_name) |> # group by actor_name and director_name combinations
-  summarise(
-    success_count = n(), # count the number of times they've worked together
-    mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
-  filter(mean_success_score > 0.60, success_count > 3) |>
-  arrange(desc(mean_success_score), desc(success_count)) |>
-  head(10)
-```
-Peter Jackson is the director of the Hobit. We can see how directors of franchises and TV series may skew the success count.
-
-What if we look at a specific director to see what actors and actresses they work well with. For example, if I wanted Greta Gerwig. Who has she worked well with in the past? 
+What if we look at a specific director to see what actors and actresses they work well with. For example, if I wanted Steven Spielberg. Who has he worked well with in the past? 
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
 actor_director_names |> 
-  filter(! titleType %in% c("tvEpisode", "videoGame", "video")) |> # filter out tvEpisodes so results are not skewed by number of episodes
-  filter(director_name == "Greta Gerwig") |>
+  filter(titleType == "movie") |> # filter for movies so results are not skewed by number of episodes
+  filter(director_name == "Steven Spielberg") |>
   group_by(actor_name, director_name) |> # group by actor_name and director_name combinations
   summarise(
     success_count = n(), # count the number of times they've worked together
     mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
-  arrange(desc(mean_success_score), desc(success_count)) |>
-  head(10)
+  select(actor_name, success_count, mean_success_score) |>
+  arrange(desc(success_count), desc(mean_success_score)) |>
+  head(5) |>
+  gt() |>
+  tab_header(
+    title = "Actors & Actresses Steven Spielberg Worked With"
+  ) |>
+  cols_label( # display column names
+    actor_name = "Actor/Actress",
+    success_count = "Success Count",
+    mean_success_score = "Mean Success Score"
+  )  
 ```
 
-**A pair of established actors who have had success in many genres**
+Now let's look at people the director has worked with at least twice. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+actor_director_names |> 
+  filter(titleType == "movie") |> # filter for movies so results are not skewed by number of episodes
+  filter(director_name == "Steven Spielberg") |>
+  group_by(actor_name, director_name) |> # group by actor_name and director_name combinations
+  summarise(
+    success_count = n(), # count the number of times they've worked together
+    mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
+  filter(success_count >= 2) |> # worked with multiple times (at least twice)
+  select(actor_name, success_count, mean_success_score) |>
+  arrange(desc(mean_success_score), desc(success_count)) |>
+  head(5) |>
+  gt() |>
+  tab_header(
+    title = "Actors & Actresses Steven Spielberg Worked With"
+  ) |>
+  cols_label( # display column names
+    actor_name = "Actor/Actress",
+    success_count = "Success Count",
+    mean_success_score = "Mean Success Score"
+  )  
+```
+
+**A pair of actors who have had success in many genres**
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
-#| eval: false
+
 # Join actors on actors
 actor_pairs <- actors_df |>
   inner_join(actors_df, by = "tconst", suffix = c("_actor1", "_actor2"), relationship = "many-to-many") |>
   filter(nconst_actor1 < nconst_actor2) |> #  prevents duplicates where the order of actors is swapped (actor A, actor B vs actor B, actor A)
   select(tconst, nconst_actor1, nconst_actor2)
-
+```
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
 # Count how many successful films each actor pair has worked together on
 actor_pairs|>
   inner_join(TITLE_RATINGS, by = "tconst") |>
   inner_join(TITLE_BASICS, by = "tconst") |>
+  filter(titleType == "movie") |> # filter for movies so results are not skewed by number of episodes
+  separate_longer_delim(genres, ",") |>
+  filter(genres == "Drama") |> # filter by Drama
   group_by(nconst_actor1, nconst_actor2) |> # group by actor pairs
   summarise(
     success_count = n(), # count the number of times they've worked together
     mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
   filter(mean_success_score > 0.60, success_count > 5) |>
   arrange(desc(mean_success_score), desc(success_count)) |>
-  inner_join(NAME_BASICS, by ="nconst") |>
-  head(10)
+  head(5)
 ```
 
-Identify (at least) two actors and one director who you will target as the key talent for your movie. Write a short “pitch” as to why they are likely to be successful. You should support your pitch with at least one graphic and one table.
-
-
 ## Nostalgia and Remakes
-The classic movie I propose to remake is Princess Bride, directed by Greta Gerwig. 
+The classic movie I propose to remake is **The Princess Bride**.Remaking The Princess Bride, a classic with an 8 IMDb rating, taps into a well-loved story while allowing us to introduce fresh talent, including original cast cameos, to engage both longtime fans and new audiences. The original has a large number of IMDb ratings, a high average rating, and has not  been remade in the past 25 years. A *Princess Bride Home Movie* was created during COVID, a miniseries shot on phones from home, but a full film remake would be very successful. 
+![](images/ogposter.jpg)
+
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
@@ -1039,15 +1122,15 @@ TITLE_BASICS |>
   )
 ```
 
-The original has a large number of IMDb ratings, a high average rating, and has not  been remade in the past 25 years. A Princess Bride Home Movie was created during COVID, a miniseries shot on phones from home, but a full film remake would be very successful. 
 
+**Key Personnel**
 Let's confirm whether key actors, directors, or writers from the original are still alive. 
-
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code" 
 TITLE_PRINCIPALS |>
   filter(tconst == "tt0093779") |>
+  filter(category %in% c("actor", "actress", "director", "writer"))
   inner_join(NAME_BASICS, by = "nconst") |>
   select(primaryName, category, characters, deathYear) |>
   gt() |> # create a display table
@@ -1062,12 +1145,17 @@ TITLE_PRINCIPALS |>
   )
 ```
 
-**Director: Greta Gerwig**
+
+**Proven Director**
+<a href="https://www.imdb.com/name/nm0000229/"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHVS2ee6usybjD-SvuXSvnWU2E3qf7-5g5YOTbUK71OHqtPVTY" width="30"/><a
+
+With Steven Spielberg, we can get a balance of heartfelt storytelling and commercial success, making this project a compelling remake. His success in genres such as Drama and Action fit well with The Princess Bride. 
+
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Display Code"
 NAME_BASICS |>
-  filter(primaryName == 'Greta Gerwig') |>
+  filter(primaryName == 'Steven Spielberg') |>
   separate_longer_delim(knownForTitles, ",") |> 
   left_join(TITLE_BASICS, by = c("knownForTitles" = "tconst")) |> 
   left_join(TITLE_RATINGS, by = c("knownForTitles" = "tconst")) |>
@@ -1075,7 +1163,7 @@ NAME_BASICS |>
   arrange(desc(success_score)) |>
   gt() |> # create a display table
   tab_header(
-    title = "Greta Gerwig Project Scores"
+    title = "Steven Spielberg	 Project Scores"
   ) |>
   cols_label( # display column names
     primaryName = "Name",
@@ -1085,18 +1173,44 @@ NAME_BASICS |>
     numVotes = "Number of Votes"
   )
 ```
+Steven Spielberg has consistently directed successful movies for over 5 decades.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+spielberg_success <- TITLE_PRINCIPALS |>
+filter(nconst %in% NAME_BASICS$nconst[NAME_BASICS$primaryName == "Steven Spielberg"]) |>
+  inner_join(TITLE_BASICS, by = "tconst") |>
+  inner_join(TITLE_RATINGS, by = "tconst") |>
+  select(primaryTitle, startYear, success_score) |>
+  distinct() |>  # Remove duplicates
+  mutate(successful = ifelse(success_score >= 0.6, 1, 0)) |>
+  group_by(startYear) |>
+  summarise(success_count = sum(successful), .groups = 'drop') |>
+  filter(success_count > 0) |>  # Only keep years with successful films
+  arrange(startYear)
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code"
+# Plotting
+ggplot(spielberg_success, aes(x = startYear, y = success_count)) +
+  geom_line(color = "blue", size = .5) +
+  geom_point(color = "blue", size = 1) +
+  labs(title = "Number of Successful Films Directed by Steven Spielberg Over Time",
+       x = "Year",
+       y = "Number of Successful Films") +
+  scale_y_continuous(limits = c(0, NA)) +  # Set y-axis to start at 0
+  theme_minimal()
+```
+
+**Casting**
+The original actress, Robin Wright, who played The Princess Bride has previously worked with Tom Hanks in the successful film Forrest Gump. However, it might be a good idea to cast some up and coming actors and actresses as leads to attract newer audience. We can keep Wallace Shawn as Vizzini for fans and a nod towards the original classic. By casting Mille Bobby Brown as The Princess Bride and Noah Jupe as Westley. Noah is known for his performances in *A Quiet Place* and *Honey Boy*, Jupe brings a fresh energy and charm suitable for the role of Westley. Timothée Chalamet could be cast as Inigo Montoya. His performances in Dune: Part Two and Part One make him an excellent choice for the iconic role of Inigo, seeking vengeance for his father.
 
 ## Elevator Pitch
-“The market for animated young adult horror musicals has grown 200% in the past decade” or “Over 90% of Director D’s movies are successes.”
+From the visionary mind of Steven Spielberg comes a timeless tale of adventure and romance, The Princess Bride. Featuring the talented Noah Jupe as Westley and the dynamic Millie Bobby Brown as Buttercup, this re-imagining will delight both old fans and new. With Timothée Chalamet as the iconic Inigo Montoya and Wallace Shawn reprising his role as Vizzini, alongside the incredible Julianne Moore, this film is a story of love, bravery, and the magic of storytelling—coming soon to theaters near you!
 
-Strong Box Office Appeal: By casting Emma Stone and Barry Keoghan, we leverage their proven track records; both actors have consistently delivered hits, with Emma starring in over 25 successful films and Barry Keoghan emerging as an up and coming actor with growing fans and success.
+This remake promises to capture the heart of the original while inviting audiences into a fresh, enchanting cinematic experience.
 
-Nostalgia Meets Modernity: Remaking The Princess Bride, a classic with an 8.1 IMDb rating and over 800,000 ratings, taps into a well-loved story while allowing us to introduce fresh talent, including original cast cameos, to engage both longtime fans and new audiences.
+![](images/poster.png)
 
-
-Proven Directorial Vision: With Greta Gerwig at the helm, whose films average an IMDb rating of 8.2, we ensure a balance of heartfelt storytelling and commercial success, making this project a compelling addition to the current film landscape.
-
-## Brief Trailer
-From director Greta Gerwig, the visionary mind behind Lady Bird; and from Emma Stone, beloved star of La La Land; and from John Boyega, Hollywood icon of the sci-fi genre, comes the timeless tale The Princess Bride. A story of love, adventure, and the power of friendship—coming soon to a theater near you.
-
-Imagine a heartwarming remake of The Princess Bride, the beloved classic that combines romance, adventure, and humor. With Emma Stone and John Boyega as our lead duo, we tap into their proven track record of box office success and audience appeal—Emma has starred in over 25 successful films, while John brings a fresh energy that resonates with younger viewers. Directed by Greta Gerwig, whose films boast an average IMDb rating of 8.2, we are poised to create a timeless story that honors the original while captivating a new generation.
