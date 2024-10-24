@@ -1030,16 +1030,7 @@ actor_director_names |>
     mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
   select(actor_name, success_count, mean_success_score) |>
   arrange(desc(success_count), desc(mean_success_score)) |>
-  head(5) |>
-  gt() |>
-  tab_header(
-    title = "Actors & Actresses Steven Spielberg Worked With"
-  ) |>
-  cols_label( # display column names
-    actor_name = "Actor/Actress",
-    success_count = "Success Count",
-    mean_success_score = "Mean Success Score"
-  )  
+  head(5)
 ```
 
 Now let's look at people the director has worked with at least twice. 
@@ -1068,39 +1059,9 @@ actor_director_names |>
   )  
 ```
 
-**A pair of actors who have had success in many genres**
-
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-#| code-fold: true
-#| code-summary: "Display Code" 
-
-# Join actors on actors
-actor_pairs <- actors_df |>
-  inner_join(actors_df, by = "tconst", suffix = c("_actor1", "_actor2"), relationship = "many-to-many") |>
-  filter(nconst_actor1 < nconst_actor2) |> #  prevents duplicates where the order of actors is swapped (actor A, actor B vs actor B, actor A)
-  select(tconst, nconst_actor1, nconst_actor2)
-```
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-#| code-fold: true
-#| code-summary: "Display Code" 
-# Count how many successful films each actor pair has worked together on
-actor_pairs|>
-  inner_join(TITLE_RATINGS, by = "tconst") |>
-  inner_join(TITLE_BASICS, by = "tconst") |>
-  filter(titleType == "movie") |> # filter for movies so results are not skewed by number of episodes
-  separate_longer_delim(genres, ",") |>
-  filter(genres == "Drama") |> # filter by Drama
-  group_by(nconst_actor1, nconst_actor2) |> # group by actor pairs
-  summarise(
-    success_count = n(), # count the number of times they've worked together
-    mean_success_score = mean(success_score, na.rm = TRUE)) |> # find the mean success score
-  filter(mean_success_score > 0.60, success_count > 5) |>
-  arrange(desc(mean_success_score), desc(success_count)) |>
-  head(5)
-```
 
 ## Nostalgia and Remakes
-The classic movie I propose to remake is **The Princess Bride**.Remaking The Princess Bride, a classic with an 8 IMDb rating, taps into a well-loved story while allowing us to introduce fresh talent, including original cast cameos, to engage both longtime fans and new audiences. The original has a large number of IMDb ratings, a high average rating, and has not  been remade in the past 25 years. A *Princess Bride Home Movie* was created during COVID, a miniseries shot on phones from home, but a full film remake would be very successful. 
+The classic movie I propose to remake is **The Princess Bride**. Remaking The Princess Bride, a classic with an 8 IMDb rating, taps into a well-loved story while allowing us to introduce fresh talent, including original cast cameos, to engage both longtime fans and new audiences. The original has a large number of IMDb ratings, a high average rating, and has not  been remade in the past 25 years. A *Princess Bride Home Movie* was created during COVID, a miniseries shot on phones from home, but a full film remake would be very successful. 
 ![](images/ogposter.jpg)
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
@@ -1121,7 +1082,39 @@ TITLE_BASICS |>
     success_score = "Success Score"
   )
 ```
+**Successful Genres**
+The Princess Bride is a film filled with Drama, Action, and Comedy, three of the top performing genres.
 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+
+recent_top_genres <- TITLE_BASICS |>
+  left_join(TITLE_RATINGS, by = "tconst") |> 
+  filter(success_score >= 0.6) |> 
+  separate_longer_delim(genres, ",") |> 
+  filter(genres %in% c("Drama", "Comedy", "Action")) |>
+  group_by(genres, startYear) |>  # Group by genres and startYear
+  summarise(success_count = n(), .groups = 'drop') |> 
+  ungroup() |>
+  arrange(startYear, desc(success_count))
+```
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Display Code" 
+
+ggplot(recent_top_genres, aes(x = startYear, y = success_count, fill = genres)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Growth of Successful Movies by Genre Over Time",
+    x = "Year",
+    y = "Count of Successful Movies",
+    fill = "Genre"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  facet_wrap(~ genres, scales = "free_y")  # Create separate plots for each genre
+```
 
 **Key Personnel**
 Let's confirm whether key actors, directors, or writers from the original are still alive. 
@@ -1130,8 +1123,8 @@ Let's confirm whether key actors, directors, or writers from the original are st
 #| code-summary: "Display Code" 
 TITLE_PRINCIPALS |>
   filter(tconst == "tt0093779") |>
-  filter(category %in% c("actor", "actress", "director", "writer"))
   inner_join(NAME_BASICS, by = "nconst") |>
+  filter(category %in% c("actor", "actress", "director", "writer")) |>
   select(primaryName, category, characters, deathYear) |>
   gt() |> # create a display table
   tab_header(
@@ -1149,7 +1142,7 @@ TITLE_PRINCIPALS |>
 **Proven Director**
 <a href="https://www.imdb.com/name/nm0000229/"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHVS2ee6usybjD-SvuXSvnWU2E3qf7-5g5YOTbUK71OHqtPVTY" width="30"/><a
 
-With Steven Spielberg, we can get a balance of heartfelt storytelling and commercial success, making this project a compelling remake. His success in genres such as Drama and Action fit well with The Princess Bride. 
+Renowned for his ability to capture magic in storytelling, Steven Spielberg is ideal for reimagining this beloved classic. With Steven Spielberg, we can get a balance of heartfelt storytelling and commercial success, making this project a compelling remake. His success in genres such as Drama and Action fit well with The Princess Bride. 
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
@@ -1173,6 +1166,7 @@ NAME_BASICS |>
     numVotes = "Number of Votes"
   )
 ```
+
 Steven Spielberg has consistently directed successful movies for over 5 decades.
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #| code-fold: true
