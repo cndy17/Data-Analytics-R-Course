@@ -629,6 +629,17 @@ state_wide_winner_take_all |>
   mutate(winner = if_else(total_ecv == max(total_ecv), "Yes", "No")) |>  # Mark winner
   ungroup() 
 
+state_wide_winner_take_all |> gt() |>
+  tab_header(
+    title = "State-Wide Winner-Take-All"
+  ) |>
+  cols_label( # display column names
+    year = "Year",
+    candidate = "Candidate",
+    party_simplified = "Party",
+    total_prop_ecv = "Electoral Votes",
+    winner = "Winning Candidate"
+  )
 ```
 
 ## District-Wide Winner-Take-All + State-Wide “At Large” Votes
@@ -676,12 +687,24 @@ ecv_combined <- state_wide_winner |>
   filter(!is.na(total_ecv)) 
 
 ecv_combined |> 
-  group_by(year, candidate, ) |> 
+  group_by(year, candidate) |> 
   summarise(total_ecv = sum(total_ecv), .groups = "drop") |> # total ecv
   arrange(year, total_ecv) |> 
   group_by(year) |> 
   mutate(winner = if_else(total_ecv == max(total_ecv), "Yes", "No")) |>  # Mark winner
   ungroup() 
+
+ecv_combined |> gt() |>
+  tab_header(
+    title = "District-Wide Winner-Take-All + State-Wide At Large Votes"
+  ) |>
+  cols_label( # display column names
+    year = "Year",
+    candidate = "Candidate",
+    party_simplified = "Party",
+    total_prop_ecv = "Electoral Votes",
+    winner = "Winning Candidate"
+  )
 ```
 
 ## State-Wide Proportional
@@ -741,6 +764,18 @@ state_wide_prop_summary <- state_wide_prop |>
   ungroup() |>
   filter(total_prop_ecv > 0) |>
   select(year, state, candidate, party_detailed, total_prop_ecv, winner)
+
+state_wide_prop_summary |> gt() |>
+  tab_header(
+    title = "State-Wide Proportional"
+  ) |>
+  cols_label( # display column names
+    year = "Year",
+    candidate = "Candidate",
+    party_simplified = "Party",
+    total_prop_ecv = "Electoral Votes",
+    winner = "Winning Candidate"
+  )
 ```
 
 ## National Proportional
@@ -773,6 +808,18 @@ nation_wide_summary <- nation_wide_prop |>
   ungroup() |>
   filter(prop_ecv > 0, !is.na(candidate)) |>
   select(year, candidate, prop_ecv, winner)
+
+nation_wide_summary |> gt() |>
+  tab_header(
+    title = "Nation-Wide Proportional"
+  ) |>
+  cols_label( # display column names
+    year = "Year",
+    candidate = "Candidate",
+    party_simplified = "Party",
+    total_prop_ecv = "Electoral Votes",
+    winner = "Winning Candidate"
+  )
 ```
 
 # Evaluating Fairness of ECV Allocation Schemes
