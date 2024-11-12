@@ -21,6 +21,8 @@ if (!require("tidyr")) install.packages("tidyr")
 if (!require("tidyverse")) install.packages("tidyverse")
 if (!require("DT")) install.packages("DT")
 if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("gifski")) install.packages("gifski")
+if (!require("gganimate")) install.packages("gganimate")
 library(readr)
 library(sf)
 library(dplyr)
@@ -28,6 +30,8 @@ library(tidyr)
 library(tidyverse)
 library(DT)
 library(ggplot2)
+library(gganimate)
+library(gifski)
 ```
 **1976-2022 House Data**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -549,15 +553,18 @@ create_election_data <- function(election_year, shapefile_data) {
   election_data <- PRESIDENT |>
     filter(year == election_year, office == "US PRESIDENT") |>  # Filter for the specific year and presidential election
     filter(party_simplified %in% c("DEMOCRAT", "REPUBLICAN")) |>
-    group_by(state, state_fips, year) |>  # Group by state and party
-    summarise(
-      winner_party = if_else(sum(candidatevotes[party_simplified == "DEMOCRAT"]) > sum(candidatevotes[party_simplified == "REPUBLICAN"]),
-                             "DEMOCRAT", "REPUBLICAN")) |>
-    ungroup() 
+    group_by(state, state_fips, party_simplified, year) |>  # Group by state and party
+    summarize(total_votes = sum(candidatevotes), .groups = "drop") |>
+    group_by(state) |>
+    slice_max(total_votes, n = 1) |>
+    ungroup() |>
+    select(state, party_simplified) |>
+    rename(winning_party = party_simplified) |>
+    mutate(year = election_year) 
   
   # Step 2: Join with the shapefile data
-  dis_election <- left_join(shapefile_data, election_data, by = c("STATENAME" = "state"), relationship = "many-to-many")
-  #dis_election$year <- year # add year column
+  dis_election <- 
+    left_join(shapefile_data, election_data, by c("STATENAME" = "state"), relationship = "many-to-many")
   return(dis_election)
 }
 # create and bind data for each election
@@ -593,6 +600,94 @@ all_map_us <- ggplot(all_main_us, aes(geometry = geometry, fill = winner_party))
 print(all_map_us)
 ```
  
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| title: View Code
+create_election_data <- function(election_year) {
+#Filter for the specific year and the simplified party
+  election_data <- PRESIDENT |>
+    filter(year == election_year, office == "US PRESIDENT") |>  # Filter for the specific year and presidential election
+    filter(party_simplified %in% c("DEMOCRAT", "REPUBLICAN")) |>
+    group_by(state, state_fips, party_simplified, year) |>  # Group by state and party
+    summarize(total_votes = sum(candidatevotes), .groups = "drop") |>
+    group_by(state) |>
+    slice_max(total_votes, n = 1) |>
+    ungroup() |>
+    select(state, party_simplified) |>
+    rename(winning_party = party_simplified) |>
+    mutate(year = election_year) 
+  return(election_data)
+}
+
+all_election_data <- bind_rows(
+  election_data_2020 <- create_election_data(2020),
+  election_data_2016 <- create_election_data(2016),
+  election_data_2012 <- create_election_data(2012),
+  election_data_2008 <- create_election_data(2008),
+  election_data_2004 <- create_election_data(2004),
+  election_data_2000 <- create_election_data(2000),
+  election_data_1996 <- create_election_data(1996),
+  election_data_1992 <- create_election_data(1992),
+  election_data_1988 <- create_election_data(1988),
+  election_data_1984 <- create_election_data(1984),
+  election_data_1980 <- create_election_data(1980),
+  election_data_1976 <- create_election_data(1976)
+)
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| title: View Code
+# dowload state shapefiles
+get_state_file <- function(fname, year){
+  BASE_URL <- sprintf("https://www2.census.gov/geo/tiger/TIGER%d/STATE/", year) #replace %d with year
+  fname_ext <- paste0(fname, ".zip")
+  fname_ext1 <- paste0(fname, ".shp")
+  fname_extunzip <- gsub(".zip$", "", fname_ext)
+  
+  # Download File
+  if(!file.exists(fname_ext)){
+    FILE_URL <- paste0(BASE_URL, fname_ext)
+    download.file(FILE_URL, 
+                  destfile = fname_ext)
+  }
+  # Unzip the contents and save unzipped content
+  unzip(zipfile = fname_ext, exdir = fname_extunzip)
+  # Define File Path
+  shapefile_path <- file.path(fname_extunzip, fname_ext1)
+  # Read the shapefile
+  read_sf(shapefile_path)
+}
+
+tl_2018_us_state <- get_state_file("tl_2018_us_state", 2018)
+
+#Join with the shapefile data
+shape_election <- left_join(tl_2018_us_state, all_election_data, by = c("NAME" = "state"), relationship = "many-to-many") |>
+  filter(!is.na(year))
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| title: View Code
+#| execute: false
+library(here)
+install.packages("here")
+
+all_election_maps <- ggplot(shape_election, aes(geometry = geometry, fill = winning_party)) +
+  geom_sf() +
+  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red")) +
+  theme_minimal() +
+  labs(title = "Presidential Election State Results {closest_state}",
+       subtitle = "Choropleth Map of U.S. States",
+       fill = "Winning Party") +
+  theme(legend.position = "bottom") +
+  transition_states(year, transition_length = 0, state_length = 1) +
+  coord_sf(xlim = c(-175, -60), expand = FALSE)
+
+save_directory <- here()  # Automatically get the directory of the script
+animate(all_election_maps, renderer = gifski_renderer(file = paste0(save_directory, "/election_results_animation.gif")))
+```
+
 # Comparing the Effects of ECV Allocation Rules
 Go through the historical voting data and assign each state’s ECVs according to various strategies:
 * Each district has a house representative 
