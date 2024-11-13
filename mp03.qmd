@@ -28,6 +28,7 @@ library(tidyr)
 library(tidyverse)
 library(DT)
 library(ggplot2)
+library(gt)
 ```
 **1976-2022 House Data**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -644,13 +645,14 @@ state_wide_winner_take_all <- PRESIDENT |>
   select(state, year, candidate, party_simplified, ecv) |>
   filter(!is.na(ecv))
 
-state_wide_winner_take_all |> 
-  group_by(year, candidate) |> 
+state_wide_winner_take_all <- state_wide_winner_take_all |> 
+  group_by(year, candidate, party_simplified) |> 
   summarise(total_ecv = sum(ecv), .groups = "drop") |> # total ecv
   arrange(year, total_ecv) |> 
   group_by(year) |> 
   mutate(winner = if_else(total_ecv == max(total_ecv), "Yes", "No")) |>  # Mark winner
-  ungroup() 
+  ungroup() |>
+  arrange(year, party_simplified)
 
 state_wide_winner_take_all |> gt() |>
   tab_header(
@@ -660,11 +662,25 @@ state_wide_winner_take_all |> gt() |>
     year = "Year",
     candidate = "Candidate",
     party_simplified = "Party",
-    total_prop_ecv = "Electoral Votes",
+    total_ecv = "Electoral Votes",
     winner = "Winning Candidate"
   )
 ```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| title: View Code
 
+ggplot(state_wide_winner_take_all, aes(x = factor(year), y = total_ecv, fill = party_simplified)) +
+  geom_bar(stat = "identity", position = "dodge") +  #  keeps bars side-by-side
+  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red")) +
+  theme_minimal() +
+  labs(
+    title = "Total ECV Votes for Each Candidate in U.S. Presidential Elections",
+    x = "Year",
+    y = "Total ECV",
+    fill = "Party"
+  )
+```
 ## District-Wide Winner-Take-All + State-Wide “At Large” Votes
 This method allocates R ECVs to popular vote winner by congressional district and the  remaining 2 ECVs to the state-wide popular vote winner. The hybrid system is used in Maine and Nebraska. In each congressional district, the candidate who wins the popular vote gets one electoral vote. Then, the state as a whole gives two additional "at-large" ECVs to the candidate who wins the overall state-wide popular vote. In Nebraska, if Candidate A wins three of the state’s districts, and Candidate B wins the other district and the statewide popular vote, the electoral votes might be split like this:
 Candidate A: 3 ECVs from the districts.
@@ -702,7 +718,7 @@ ecv_assignment <- district_winners |>
 
 #  Find total ecv from districts
 district_ecv_summary <- ecv_assignment |>
-  group_by(state, year, candidate.y) |>
+  group_by(state, year, candidate.y, party) |>
   summarise(district_total_ecv = sum(ecv_presidential), .groups = "drop")
 
 #  Join the district-level ECV summary with the statewide ECVs
@@ -710,11 +726,10 @@ ecv_combined <- state_wide_winner |>
   left_join(district_ecv_summary, by = c("state", "year", "candidate" = "candidate.y")) |>
   # Add the statewide ECV to the district-level ECVs
   mutate(total_ecv = district_total_ecv + ECV) |>
-  select()
   filter(!is.na(total_ecv)) 
 
-ecv_combined |> 
-  group_by(year, candidate) |> 
+ecv_combined <- ecv_combined |> 
+  group_by(year, candidate, party) |> 
   summarise(total_ecv = sum(total_ecv), .groups = "drop") |> # total ecv
   arrange(year, total_ecv) |> 
   group_by(year) |> 
@@ -728,12 +743,26 @@ ecv_combined |> gt() |>
   cols_label( # display column names
     year = "Year",
     candidate = "Candidate",
-    party_simplified = "Party",
-    total_prop_ecv = "Electoral Votes",
+    party = "Party",
+    total_ecv = "Electoral Votes",
     winner = "Winning Candidate"
   )
 ```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| title: View Code
 
+ggplot(ecv_combined, aes(x = factor(year), y = total_ecv, fill = party)) +
+  geom_bar(stat = "identity", position = "dodge") +  #  keeps bars side-by-side
+  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red")) +
+  theme_minimal() +
+  labs(
+    title = "Total ECV Votes for Each Candidate in U.S. Presidential Elections",
+    x = "Year",
+    y = "Total ECV",
+    fill = "Party"
+  )
+```
 ## State-Wide Proportional
 Under this system, electoral votes are distributed proportionally based on the percentage of votes each candidate receives in the state. If a candidate wins 60% of the vote in a state with 10 electoral votes, they get 60% of those electoral votes (6 ECVs). The approach here invovles calculating the total number of votes for each candidate in each state. Then, determine the proportion of the total vote that each candidate received in each state. 
 *Note: The rounding issue in proportional allocation methods does lead to the loss of some ECVs because, after rounding, the sum of the allocated votes may not match the total number of ECVs available for that state or for the entire country. Here, I allocate the remaining ECV to the candidate with the greatest proportion of votes.*
@@ -755,17 +784,12 @@ state_proportional_summary <- state_proportional_votes |>
   summarise(total_proportional_ecv = sum(proportional_ecv), .groups = "drop") |>
   arrange(state, year, total_proportional_ecv) |>
   group_by(state, year) |>
+  # Mark the winner with the most ECVs in each state and year
   mutate(winner = if_else(total_proportional_ecv == max(total_proportional_ecv), "Yes", "No")) |> 
   ungroup() 
 
-# Mark the winner with the most ECVs in each state and year
-state_proportional_summary |>
-  group_by(state, year) |>
-  mutate(winner = if_else(total_proportional_ecv == max(total_proportional_ecv), "Yes", "No")) |> 
-  ungroup()
-
-# When we use proportions and round, we sometimes lose an ECV that go unallocted
-# Allocate ECVs proportionally and round down (first pass)
+# When we use proportions and round, some ECV  go unallocated
+# Allocate ECVs proportionally and round down
 state_wide_prop <- PRESIDENT |>
   group_by(state, year) |>
   mutate(vote_share = candidatevotes / sum(candidatevotes)) |> # Proportion of votes
@@ -775,6 +799,7 @@ state_wide_prop <- PRESIDENT |>
   group_by(state, year) |>
   mutate(remaining_ecvs = ecv - sum(round_prop_ecv)) |>  # Calculate how many ECVs are left to allocate
   ungroup() |>
+  
   # assign remainder to the max unrounded proportion
   group_by(state, year) |>
 
@@ -782,28 +807,54 @@ state_wide_prop <- PRESIDENT |>
                             round_prop_ecv + remaining_ecvs, 
                             round_prop_ecv)) |>  # Allocate remaining ECVs to the candidate with max vote share
   ungroup() |>
-  select(year, state, candidate, party_detailed, ecv, prop_ecv, round_prop_ecv, remaining_ecvs, final_ecv)
+  select(year, state, candidate, party_simplified, ecv, prop_ecv, round_prop_ecv, remaining_ecvs, final_ecv)
 
 # Summarize the total allocated ECVs for each candidate
 state_wide_prop_summary <- state_wide_prop |>
-  group_by(state, year, candidate, party_detailed) |>
+  group_by(state, year, candidate, party_simplified) |>
   summarise(total_prop_ecv = sum(final_ecv), .groups = "drop") |>
   group_by(year, state) |>
   mutate(winner = if_else(total_prop_ecv == max(total_prop_ecv), "Yes", "No")) |> 
   ungroup() |>
   filter(total_prop_ecv > 0) |>
-  select(year, state, candidate, party_detailed, total_prop_ecv, winner)
+  select(year, candidate, party_simplified, total_prop_ecv, winner)
 
-state_wide_prop_summary |> gt() |>
+# across states for the year
+state_wide_totals <- state_wide_prop_summary |>
+  group_by(year, candidate, party_simplified) |>
+  summarise(total_ecv = sum(total_prop_ecv), .groups = "drop") |>
+  group_by(year) |>
+  mutate(winner = if_else(total_ecv == max(total_ecv), "Yes", "No")) |> 
+  ungroup() |>
+  filter(total_ecv > 0) |>
+  select(year, candidate, party_simplified, total_ecv, winner) |>
+  arrange(year, desc(total_ecv))
+
+state_wide_totals |> gt() |>
   tab_header(
     title = "State-Wide Proportional"
   ) |>
   cols_label( # display column names
     year = "Year",
     candidate = "Candidate",
-    party_simplified = "Party",
-    total_prop_ecv = "Electoral Votes",
+    simplified_party = "Party"
+    total_ecv = "Electoral Votes",
     winner = "Winning Candidate"
+  )
+```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| title: View Code
+
+ggplot(state_wide_totals, aes(x = factor(year), y = total_ecv, fill = party_simplified)) +
+  geom_bar(stat = "identity", position = "dodge") +  #  keeps bars side-by-side
+  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red", "LIBERTARIAN" = "beige", "OTHER" = "gray")) +
+  theme_minimal() +
+  labs(
+    title = "Total ECV Votes for Each Candidate in U.S. Presidential Elections",
+    x = "Year",
+    y = "Total ECV",
+    fill = "Party"
   )
 ```
 
@@ -819,8 +870,8 @@ electoral_votes_available <- ECV |>
   summarize(total_ecv = sum(ecv)) # sum ecv
 
 nation_wide_prop <- PRESIDENT |>
-  select(year, state, candidate, candidatevotes) |>
-  group_by(year, candidate) |>
+  select(year, state, candidate, candidatevotes, party_simplified) |>
+  group_by(year, candidate, party_simplified) |>
   summarize(candidate_total = sum(candidatevotes)) |> # total votes nationwide per candidate per year
   group_by(year) |>
   mutate(nation_total = sum(candidate_total)) |>  # total votes nationwide per year
@@ -838,7 +889,8 @@ nation_wide_summary <- nation_wide_prop |>
   mutate(winner = if_else(prop_ecv == max(prop_ecv), "Yes", "No")) |> 
   ungroup() |>
   filter(prop_ecv > 0, !is.na(candidate)) |>
-  select(year, candidate, prop_ecv, winner)
+  select(year, candidate, prop_ecv, winner, party_simplified) |>
+  arrange(year, desc(prop_ecv))
 
 nation_wide_summary |> gt() |>
   tab_header(
@@ -848,8 +900,23 @@ nation_wide_summary |> gt() |>
     year = "Year",
     candidate = "Candidate",
     party_simplified = "Party",
-    total_prop_ecv = "Electoral Votes",
+    prop_ecv = "Electoral Votes",
     winner = "Winning Candidate"
+  )
+```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| title: View Code
+
+ggplot(nation_wide_summary, aes(x = factor(year), y = prop_ecv, fill = party_simplified)) +
+  geom_bar(stat = "identity", position = "dodge") +  #  keeps bars side-by-side
+  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red", "LIBERTARIAN" = "beige", "OTHER" = "gray")) +
+  theme_minimal() +
+  labs(
+    title = "Total ECV Votes for Each Candidate in U.S. Presidential Elections",
+    x = "Year",
+    y = "Total ECV",
+    fill = "Party"
   )
 ```
 
