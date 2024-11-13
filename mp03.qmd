@@ -21,8 +21,6 @@ if (!require("tidyr")) install.packages("tidyr")
 if (!require("tidyverse")) install.packages("tidyverse")
 if (!require("DT")) install.packages("DT")
 if (!require("ggplot2")) install.packages("ggplot2")
-if (!require("gifski")) install.packages("gifski")
-if (!require("gganimate")) install.packages("gganimate")
 library(readr)
 library(sf)
 library(dplyr)
@@ -30,8 +28,6 @@ library(tidyr)
 library(tidyverse)
 library(DT)
 library(ggplot2)
-library(gganimate)
-library(gifski)
 ```
 **1976-2022 House Data**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -413,7 +409,7 @@ print(combined_map)
 ```
 
 Faceted Chloropleth Visualization of Electoral College Results
-First, we need to clean the data to ensure they join properly. First, we convert to the same CRS. Then, I am adding a `STATENAME` column based on the `STATEFP.`  
+First, we need to clean the data to ensure they join properly. First, we convert to the same CRS. Then, I am adding a `STATENAME` column based on the `STATEFP` as well as changing STATENAME values to uppercase to match. 
 ``` {r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| title: View Code
@@ -430,6 +426,18 @@ districts108 <- st_transform(districts108, crs = st_crs(districts112))
 districts111 <- st_transform(districts111, crs = st_crs(districts112))
 tl_2016_us_cd115 <- st_transform(tl_2016_us_cd115, crs = st_crs(districts112))
 tl_2020_us_cd116 <- st_transform(tl_2020_us_cd116, crs = st_crs(districts112))
+
+# convert state names for to uppercase join
+districts095$STATENAME <- toupper(districts095$STATENAME)  
+districts097$STATENAME <- toupper(districts097$STATENAME)  
+districts098$STATENAME <- toupper(districts098$STATENAME)  
+districts101$STATENAME <- toupper(districts101$STATENAME)  
+districts102$STATENAME <- toupper(districts102$STATENAME)  
+districts103$STATENAME <- toupper(districts103$STATENAME)  
+districts106$STATENAME <- toupper(districts106$STATENAME)  
+districts108$STATENAME <- toupper(districts108$STATENAME)  
+districts111$STATENAME <- toupper(districts111$STATENAME)  
+districts112$STATENAME <- toupper(districts112$STATENAME)  
 
 # add STATENAME column using statefp
 # https://www.mercercountypa.gov/dps/state_fips_code_listing.htm 
@@ -548,26 +556,25 @@ I have created a function to create election data systematically for each year a
 ``` {r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| title: View Code
+# Function to create election data
 create_election_data <- function(election_year, shapefile_data) {
   # Step 1: Filter for the specific year and the simplified party
   election_data <- PRESIDENT |>
     filter(year == election_year, office == "US PRESIDENT") |>  # Filter for the specific year and presidential election
     filter(party_simplified %in% c("DEMOCRAT", "REPUBLICAN")) |>
-    group_by(state, state_fips, party_simplified, year) |>  # Group by state and party
-    summarize(total_votes = sum(candidatevotes), .groups = "drop") |>
-    group_by(state) |>
-    slice_max(total_votes, n = 1) |>
-    ungroup() |>
-    select(state, party_simplified) |>
-    rename(winning_party = party_simplified) |>
-    mutate(year = election_year) 
+    group_by(state, state_fips, year) |>  # Group by state and party
+    summarise(
+      winner_party = if_else(sum(candidatevotes[party_simplified == "DEMOCRAT"]) > sum(candidatevotes[party_simplified == "REPUBLICAN"]),
+                             "DEMOCRAT", "REPUBLICAN")) |>
+    ungroup() |> 
+    filter(!is.na(winner_party))
   
   # Step 2: Join with the shapefile data
-  dis_election <- 
-    left_join(shapefile_data, election_data, by c("STATENAME" = "state"), relationship = "many-to-many")
+  dis_election <- left_join(shapefile_data, election_data, by = c("STATENAME" = "state"), relationship = "many-to-many")
+  #dis_election$year <- year # add year column
   return(dis_election)
 }
-# create and bind data for each election
+# bind election data for each year into one file
 all_election_data <- bind_rows(
   election_data_2020 <- create_election_data(2020, tl_2020_us_cd116),
   election_data_2016 <- create_election_data(2016, tl_2016_us_cd115),
@@ -582,118 +589,39 @@ all_election_data <- bind_rows(
   election_data_1980 <- create_election_data(1980, districts097),
   election_data_1976 <- create_election_data(1976, districts095)
 )
+
+# simplify map data
+sf::sf_use_s2(FALSE)
+all_election_simplified <- st_simplify(all_election_data, dTolerance = 0.01)
+
 ```
 
 ``` {r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| title: View Code
-#| execute: false
-all_map_us <- ggplot(all_main_us, aes(geometry = geometry, fill = winner_party)) +
-    geom_sf() + 
-    scale_fill_manual(values = c("REPUBLICAN" = "red", "DEMOCRAT" = "blue")) +
-    theme_minimal() +
-    labs(title = "U.S. Presidential Election Results by State in",
-         fill = "Winning Party") +
-    theme_void() +
-    facet_wrap(~ year, ncol=1) 
+#| cache: true
+all_alaska <- all_election_simplified |> filter(STATENAME == "ALASKA")
+all_hawaii <- all_election_simplified |> filter(STATENAME == "HAWAII") 
+all_main_us <- all_election_simplified |> filter(!STATENAME %in% c("ALASKA", "HAWAII"))
   
+  # Step 3: Main map for the contiguous U.S.
+all_map_us <- ggplot(all_main_us, aes(geometry = geometry, fill = winner_party)) +
+  geom_sf() + 
+  scale_fill_manual(values = c("REPUBLICAN" = "red", "DEMOCRAT" = "blue")) +
+  theme_minimal() +
+  labs(title = "U.S. Presidential Election Results by State in",
+       fill = "Winning Party") +
+  theme_void() +
+  facet_wrap(~ year, ncol=2) 
+
 print(all_map_us)
 ```
  
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| title: View Code
-create_election_data <- function(election_year) {
-#Filter for the specific year and the simplified party
-  election_data <- PRESIDENT |>
-    filter(year == election_year, office == "US PRESIDENT") |>  # Filter for the specific year and presidential election
-    filter(party_simplified %in% c("DEMOCRAT", "REPUBLICAN")) |>
-    group_by(state, state_fips, party_simplified, year) |>  # Group by state and party
-    summarize(total_votes = sum(candidatevotes), .groups = "drop") |>
-    group_by(state) |>
-    slice_max(total_votes, n = 1) |>
-    ungroup() |>
-    select(state, party_simplified) |>
-    rename(winning_party = party_simplified) |>
-    mutate(year = election_year) 
-  return(election_data)
-}
-
-all_election_data <- bind_rows(
-  election_data_2020 <- create_election_data(2020),
-  election_data_2016 <- create_election_data(2016),
-  election_data_2012 <- create_election_data(2012),
-  election_data_2008 <- create_election_data(2008),
-  election_data_2004 <- create_election_data(2004),
-  election_data_2000 <- create_election_data(2000),
-  election_data_1996 <- create_election_data(1996),
-  election_data_1992 <- create_election_data(1992),
-  election_data_1988 <- create_election_data(1988),
-  election_data_1984 <- create_election_data(1984),
-  election_data_1980 <- create_election_data(1980),
-  election_data_1976 <- create_election_data(1976)
-)
-```
-
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| title: View Code
-# dowload state shapefiles
-get_state_file <- function(fname, year){
-  BASE_URL <- sprintf("https://www2.census.gov/geo/tiger/TIGER%d/STATE/", year) #replace %d with year
-  fname_ext <- paste0(fname, ".zip")
-  fname_ext1 <- paste0(fname, ".shp")
-  fname_extunzip <- gsub(".zip$", "", fname_ext)
-  
-  # Download File
-  if(!file.exists(fname_ext)){
-    FILE_URL <- paste0(BASE_URL, fname_ext)
-    download.file(FILE_URL, 
-                  destfile = fname_ext)
-  }
-  # Unzip the contents and save unzipped content
-  unzip(zipfile = fname_ext, exdir = fname_extunzip)
-  # Define File Path
-  shapefile_path <- file.path(fname_extunzip, fname_ext1)
-  # Read the shapefile
-  read_sf(shapefile_path)
-}
-
-tl_2018_us_state <- get_state_file("tl_2018_us_state", 2018)
-
-#Join with the shapefile data
-shape_election <- left_join(tl_2018_us_state, all_election_data, by = c("NAME" = "state"), relationship = "many-to-many") |>
-  filter(!is.na(year))
-```
-
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| title: View Code
-#| execute: false
-library(here)
-install.packages("here")
-
-all_election_maps <- ggplot(shape_election, aes(geometry = geometry, fill = winning_party)) +
-  geom_sf() +
-  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red")) +
-  theme_minimal() +
-  labs(title = "Presidential Election State Results {closest_state}",
-       subtitle = "Choropleth Map of U.S. States",
-       fill = "Winning Party") +
-  theme(legend.position = "bottom") +
-  transition_states(year, transition_length = 0, state_length = 1) +
-  coord_sf(xlim = c(-175, -60), expand = FALSE)
-
-save_directory <- here()  # Automatically get the directory of the script
-animate(all_election_maps, renderer = gifski_renderer(file = paste0(save_directory, "/election_results_animation.gif")))
-```
-
 # Comparing the Effects of ECV Allocation Rules
-Go through the historical voting data and assign each state’s ECVs according to various strategies:
+These are different methods for distributing electoral votes (ECVs) among candidates in U.S. presidential elections. We want to see if rules for how ECVs are distributed can significantly influence the outcome of an election. Let's explore each allocation scheme:
+We can find the electoral college votes per state using the `House` data. 
 * Each district has a house representative 
 * Each state gets R + 2
-
-We can find the electoral college votes using the `House` data. 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| title: View Code
@@ -704,7 +632,7 @@ ECV <- HOUSE |>
             ecv = house_reps + 2, .groups = "drop")  # get ECV by adding 2
 ```
 ## State-Wide Winner-Take-All
-This method follows that the candidate who wins the most votes in a state receives all of that state’s Electoral College votes
+n this system, the candidate who wins the most votes in a state receives all of that state’s Electoral College votes, regardless of the margin of victory. In most states (except Nebraska and Maine), if Candidate A wins 51% of the vote in a state, they will receive all of that state's Electoral Votes, even if Candidate B got 49% of the vote. Each state has a certain number of electoral votes (ECVs), based on its representation in Congress (Senators + House Representatives). Under this system, only the winner of the popular vote in the state gets those votes.
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -738,7 +666,11 @@ state_wide_winner_take_all |> gt() |>
 ```
 
 ## District-Wide Winner-Take-All + State-Wide “At Large” Votes
-This method allocates R ECVs to popular vote winner by congressional district and the  remaining 2 ECVs to the state-wide popular vote winner. The hybrid system is used in Maine and Nebraska. In each congressional district, the candidate who wins the popular vote gets one electoral vote. Then, the state as a whole gives two additional "at-large" ECVs to the candidate who wins the overall state-wide popular vote.
+This method allocates R ECVs to popular vote winner by congressional district and the  remaining 2 ECVs to the state-wide popular vote winner. The hybrid system is used in Maine and Nebraska. In each congressional district, the candidate who wins the popular vote gets one electoral vote. Then, the state as a whole gives two additional "at-large" ECVs to the candidate who wins the overall state-wide popular vote. In Nebraska, if Candidate A wins three of the state’s districts, and Candidate B wins the other district and the statewide popular vote, the electoral votes might be split like this:
+Candidate A: 3 ECVs from the districts.
+Candidate B: 2 ECVs for winning the state-wide vote.
+This system allows for a split in how ECVs are allocated, unlike the traditional winner-take-all system where the candidate winning the state by a narrow margin would still receive all the state's votes.
+
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| title: View Code
@@ -803,7 +735,9 @@ ecv_combined |> gt() |>
 ```
 
 ## State-Wide Proportional
-The approach here invovles calculating the total number of votes for each candidate in each state. Then, determine the proportion of the total vote that each candidate received in each state.
+Under this system, electoral votes are distributed proportionally based on the percentage of votes each candidate receives in the state. If a candidate wins 60% of the vote in a state with 10 electoral votes, they get 60% of those electoral votes (6 ECVs). The approach here invovles calculating the total number of votes for each candidate in each state. Then, determine the proportion of the total vote that each candidate received in each state. 
+*Note: The rounding issue in proportional allocation methods does lead to the loss of some ECVs because, after rounding, the sum of the allocated votes may not match the total number of ECVs available for that state or for the entire country. Here, I allocate the remaining ECV to the candidate with the greatest proportion of votes.*
+
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| title: View Code
@@ -874,6 +808,8 @@ state_wide_prop_summary |> gt() |>
 ```
 
 ## National Proportional
+This system allocates ECVs based on the national popular vote, not state-by-state. So, each state’s contribution to the national total is proportional to the number of votes received by each candidate in the national election. If Candidate A wins 60% of the total national popular vote and Candidate B wins 40%, Candidate A would receive 60% of the total ECVs, and Candidate B would get 40%, regardless of how they performed in any individual state. This system would reduce the importance of individual states and the swing state effect, and might make the election outcomes more directly tied to the national popular vote.
+
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| title: View Code
@@ -923,6 +859,17 @@ Based on these allocation strategies, compare the winning presidential candidate
 What patterns do you see? Are the results generally consistent or are one or more methods systematically more favorable to one party?
   
 For the district-level winner-take-all, you may assume that the presidential candidate of the same party as the congressional representative wins that election.
+## Fact Check Example: 2000 Election
+The 2000 U.S. Presidential Election is a classic case to examine:
+Outcome under State-Wide Winner-Take-All: George W. Bush won the presidency despite losing the popular vote.
+Outcome under National Proportional: Al Gore would have likely won the presidency.
+Using a national proportional system would have reflected the actual will of all the voters.
+
+## What Does "Fairness" Mean?
+When I think about fairness in the context of ECV allocation, it generally relates to how well the system:
+1. Represents the popular vote: Does the distribution of ECVs accurately reflect the number of votes cast for each candidate? A system that over-represents or under-represents certain groups could be considered unfair.
+2. Accounts for each state: In systems like the current winner-take-all method, small states with fewer voters might have a disproportionately large influence in electing a president compared to larger states. In contrast, a proportional system might mitigate this imbalance.
+3. Minimizes “winner-take-all” advantages: A system where a candidate wins by just a small margin but takes all of a state’s ECVs could be seen as unfair because the losing candidate might have had broad support across the state, but doesn't get any representation.
 
 # Task 7: Evaluating Fairness of ECV Allocation Schemes
 Write a fact check evaluating the fairness of the different ECV electoral allocation schemes. To do so, you should first determine which allocation scheme you consider “fairest”. You should then see which schemes give different results, if they ever do. 
