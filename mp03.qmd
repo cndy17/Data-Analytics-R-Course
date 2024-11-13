@@ -974,7 +974,7 @@ The scale I'll use is a 5-point scale, ranging from 1 to 5, where:
 4. **Mostly True** – The claim is largely accurate, with very minor misstatements or nuances that don’t change the overall truth.
 5. **True** – The claim is completely accurate, with no significant errors or misleading information.
 
-Under the State-Wide Winner-Take-All system, smaller states do indeed have a disproportionately large impact because of the fixed 2 Senate seats each state gets, regardless of population. This benefits candidates who win a disproportionate share of votes in less populous states.
+Score: 4 Under the State-Wide Winner-Take-All system, smaller states do indeed have a disproportionately large impact because of the fixed 2 Senate seats each state gets, regardless of population. This benefits candidates who win a disproportionate share of votes in less populous states.
 
 **Pew Research Center**
 In September of 2024, the Pew published that the article: [Majority of Americans Continue to Favor Moving Away from Electoral College.](https://www.pewresearch.org/short-reads/2024/09/25/majority-of-americans-continue-to-favor-moving-away-from-electoral-college/) Following the 2000 and 2016 elections, where the winners of the popular vote received fewer Electoral College votes than their opponents, the Pew surveyed we surveyed 9,720 U.S. adults.
