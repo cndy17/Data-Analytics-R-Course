@@ -6,15 +6,13 @@ author: "Cindy Li"
 # Introduction
 The U.S. Electoral College (EC) system, by design, has a significant impact on presidential elections, often making the distribution of votes much more complex than a simple nationwide popular vote. The system has been debated, especially when the results diverge from the popular vote. This analysis' primary goal is to assess how the allocation schemes impact the election outcomes and whether any bias exists, especially in favor of one political party.
 
-# Background
-
 # Data Ingesting
 ## Data I: ELection Data
 Data Source: MIT Election Data Science Lab datasets 
 From the MIT Election Data Science Lab, we are retrieving two data sets. First, are votes from all biennial congressional races in all 50 states from 1976 to 2020. Second, are statewide presidential vote cotes. This requires a download from the link 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: Load Libraries
+#| code-summary: Load Libraries
 if (!require("readr")) install.packages("readr")
 if (!require("sf")) install.packages("sf")
 if (!require("dplyr")) install.packages("dplyr")
@@ -22,6 +20,9 @@ if (!require("tidyr")) install.packages("tidyr")
 if (!require("tidyverse")) install.packages("tidyverse")
 if (!require("DT")) install.packages("DT")
 if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("gt")) install.packages("gt")
+if (!require("plotly")) install.packages("plotly")
+
 library(readr)
 library(sf)
 library(dplyr)
@@ -30,11 +31,13 @@ library(tidyverse)
 library(DT)
 library(ggplot2)
 library(gt)
+library(plotly)
+
 ```
 ### 1976-2022 House Data
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 HOUSE <- read_csv("1976-2022-house.csv")
 PRESIDENT <- read_csv("1976-2020-president.csv")
 
@@ -44,7 +47,7 @@ sample_n(HOUSE, 1000) |>
 ### 1976-2020 President Data
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 sample_n(HOUSE, 1000) |>
   DT::datatable()
 ```
@@ -53,7 +56,7 @@ Data Source: Jeffrey B. Lewis, Brandon DeVine, and Lincoln Pritcher with Kenneth
 This source give us the shapefiles for all US congressional districts from 1789 to 2012.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 get_file <- function(fname){
   BASE_URL <- "https://cdmaps.polisci.ucla.edu/shp/"
   fname_ext <- paste0(fname, ".zip")
@@ -88,7 +91,7 @@ Data Source: US Census Bureau
 This data source provides district boundaries for more recent congressional elections.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 get_congress_file <- function(fname, year){
   BASE_URL <- sprintf("https://www2.census.gov/geo/tiger/TIGER%d/CD/", year) #replace %d with year
   fname_ext <- paste0(fname, ".zip")
@@ -129,7 +132,7 @@ for (i in 0:10) {  # i will range from 0 (2022) to 10 (2012)
 **1. Which states have gained and lost the most seats in the US House of Representatives between 1976 and 2022?**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 
 # Count the number of districts (aka seats) per state for each year
 gains_losses <- HOUSE |>
@@ -162,7 +165,7 @@ ggplot(gains_losses, aes(x = reorder(state, seat_change), y = seat_change, fill 
 **2. New York State has a unique “fusion” voting system where one candidate can appear on multiple “lines” on the ballot and their vote counts are totaled. Are there any elections in our data where the election would have had a different outcome if the “fusion” system was not used and candidates only received the votes their received from their “major party line” (Democrat or Republican) and not their total number of votes across all lines?**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 # Summarize the votes for each candidate, total votes vs major party votes
 fusion_summary <- HOUSE |>
   filter(!is.na(candidate)) |>
@@ -201,7 +204,6 @@ ggplot(fusion_outcome_changes, aes(x = outcome_change, fill = outcome_change)) +
     x = "Outcome Change",
     y = "Number of Elections"
   ) +
-  scale_fill_manual(values = c("Yes" = "steelblue", "No" = "lightgray")) +  # Color coding
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
@@ -215,7 +217,7 @@ ggplot(fusion_outcome_changes, aes(x = outcome_change, fill = outcome_change)) +
 Let's take a glimpse at just the year 2020.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 # Summarize presidential votes for Democrat and Republican candidates
 presidential_votes <- PRESIDENT |>
   filter(party_simplified %in% c("DEMOCRAT", "REPUBLICAN")) |>
@@ -244,7 +246,7 @@ vote_comparison <- left_join(presidential_votes, congressional_votes, by = c("ye
 Does this trend differ over time? Does it differ across states or across parties? 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 # Plot the vote difference between presidential and congressional candidates frequencies by year
 ggplot(vote_comparison, aes(x = vote_difference, fill = run_ahead)) +
   geom_histogram(binwidth = 100000, position = "identity", alpha = 0.7) +
@@ -260,7 +262,7 @@ ggplot(vote_comparison, aes(x = vote_difference, fill = run_ahead)) +
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 #| layout-ncol: 2
 
 # Calculate the average vote difference for each president (across all states and years)
@@ -284,6 +286,7 @@ president_ranking <- presidential_comparison |>
 ggplot(president_ranking, aes(x = reorder(party_simplified, average_vote_difference), y = average_vote_difference, fill = party_simplified)) +
   geom_bar(stat = "identity", show.legend = FALSE) +
   coord_flip() +
+  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red"))
   labs(
     title = "Presidential Popularity vs. Congressional Co-partisans",
     x = "President",
@@ -296,6 +299,7 @@ ggplot(president_ranking, aes(x = reorder(party_simplified, average_vote_differe
 ggplot(president_ranking, aes(x = year, y = average_vote_difference, color = party_simplified, group = party_simplified)) +
   geom_line(size = 1) +
   geom_point(size = 3) +  # Adds points at each year
+  scale_color_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red")) + 
   labs(
     title = "Presidential Popularity vs. Congressional Co-partisans Over Time",
     x = "Year",
@@ -311,7 +315,7 @@ ggplot(president_ranking, aes(x = year, y = average_vote_difference, color = par
 To create a map of the results broken down by states, we will need to find the election results of each state. The first step involves filtering the election dataset `PRESIDENT` to get the results for the year 2000. We specifically focus on the U.S. Presidential election and filter for the two main candidates, George W. Bush and Al Gore. We then calculate the winner for each state based on who received the most votes and assign the appropriate party.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 election_2000 <- PRESIDENT |>
   filter(year == 2000, office == "US PRESIDENT") |> # filter for 2000 and president office
   filter(candidate %in% c("BUSH, GEORGE W.", "GORE, AL")) |> # filter for Bush and Gore
@@ -330,7 +334,7 @@ election_2000 <- PRESIDENT |>
 The next step is to join the election results with the geographical shapefile data. This step ensures that we can visualize the election results on a map by linking the state names in both datasets. The shapefile data is modified to ensure the state names are in uppercase to match the election data. After merging the data, we create a choropleth map of the contiguous U.S. states. We use geom_sf() to plot the states and color them based on the winning party (Republican or Democrat). The map is then customized to remove axis labels and grid lines for a clean visualization.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 #| cache: true
 # join with shapefile
 districts106$STATENAME <- toupper(districts106$STATENAME) # uppercase state name to match
@@ -355,7 +359,7 @@ ggplot(main_us, aes(geometry = geometry, fill = winner_party)) +
 Because Alaska and Hawaii are geographically distant from the mainland U.S., we create insets for these two states. The data for Alaska and Hawaii is filtered separately, and individual maps are created for each. These insets are then added to the main U.S. map. 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 #| cache: true
 # contiguous US 
 main_us <- dis_election_2000 |> filter(!STATENAME %in% c("ALASKA", "HAWAII"))
@@ -404,7 +408,7 @@ print(combined_map)
 First, we need to clean the data to ensure they join properly. First, we convert to the same CRS. Then, I am adding a `STATENAME` column based on the `STATEFP` as well as changing STATENAME values to uppercase to match. 
 ``` {r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 
 # convert to the same crs
 districts095 <- st_transform(districts095, crs = st_crs(districts112))
@@ -555,7 +559,7 @@ and it returns:
 
 ``` {r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 # Function to create election data
 create_election_data <- function(election_year, shapefile_data) {
   # Step 1: Filter for the specific year and the simplified party
@@ -599,7 +603,7 @@ all_election_simplified <- st_simplify(all_election_data, dTolerance = 0.01)
 With the combined and simplified election data, we can now create a series of maps to visualize the election results for each year. The code below creates a map of the contiguous U.S. (excluding Alaska and Hawaii).
 ``` {r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 #| cache: true
 all_alaska <- all_election_simplified |> filter(STATENAME == "ALASKA")
 all_hawaii <- all_election_simplified |> filter(STATENAME == "HAWAII") 
@@ -625,7 +629,7 @@ We can find the electoral college votes per state using the `House` data.
 * Each state gets R + 2
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 # count number of House Representatives using count of unique districts grouped by year and state
 ECV <- HOUSE |>
   group_by(state, year) |>  # Group by state and year
@@ -637,7 +641,7 @@ n this system, the candidate who wins the most votes in a state receives all of 
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 state_wide_winner_take_all <- PRESIDENT |>
   group_by(state, year) |>
   filter(candidatevotes == max(candidatevotes)) |>
@@ -668,7 +672,7 @@ state_wide_winner_take_all |> gt() |>
 ```
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 
 ggplot(state_wide_winner_take_all, aes(x = factor(year), y = total_ecv, fill = party_simplified)) +
   geom_bar(stat = "identity", position = "dodge") +  #  keeps bars side-by-side
@@ -689,7 +693,7 @@ This system allows for a split in how ECVs are allocated, unlike the traditional
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 # look at statewide winner - assign 2 ecv
 state_wide_winner <- PRESIDENT |>
   group_by(state, year) |>
@@ -750,7 +754,7 @@ ecv_combined |> gt() |>
 ```
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 
 ggplot(ecv_combined, aes(x = factor(year), y = total_ecv, fill = party)) +
   geom_bar(stat = "identity", position = "dodge") +  #  keeps bars side-by-side
@@ -770,7 +774,7 @@ Under this system, electoral votes are distributed proportionally based on the p
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 # Allocate ECVs based on that proportion with rounding 
 state_proportional_votes <- PRESIDENT |>
   group_by(state, year) |>
@@ -834,7 +838,7 @@ state_wide_totals <- state_wide_prop_summary |>
 ```
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 
 ggplot(state_wide_totals, aes(x = factor(year), y = total_ecv, fill = party_simplified)) +
   geom_bar(stat = "identity", position = "dodge") +  #  keeps bars side-by-side
@@ -865,7 +869,7 @@ This system allocates ECVs based on the national popular vote, not state-by-stat
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 # Find total ECV for each year 
 electoral_votes_available <- ECV |>
   group_by(year) |>
@@ -896,7 +900,7 @@ nation_wide_summary <- nation_wide_prop |>
 ```
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| title: View Code
+#| code-summary: View Code
 
 ggplot(nation_wide_summary, aes(x = factor(year), y = prop_ecv, fill = party_simplified)) +
   geom_bar(stat = "identity", position = "dodge") +  #  keeps bars side-by-side
@@ -928,46 +932,260 @@ Based on these allocation strategies, compare the winning presidential candidate
 What patterns do you see? Are the results generally consistent or are one or more methods systematically more favorable to one party?
   
 For the district-level winner-take-all, you may assume that the presidential candidate of the same party as the congressional representative wins that election.
-## Fact Check Example: 2000 Election
-**Case Study: The 2000 U.S. Presidential Election**
+
+## Fact Check Example: The 2000 U.S. Presidential Election
 The 2000 U.S. presidential election between George W. Bush (Republican) and Al Gore (Democrat) provides a compelling case study of the Electoral College’s impact. Bush won the presidency despite losing the popular vote by approximately 500,000 votes. This resulted in widespread criticism of the electoral system.
 
-Outcome under Different Allocation Schemes:
-State-Wide Winner-Take-All:
+**State-Wide Winner-Take-All:**
 Bush: 271 ECVs (Winner)
 Gore: 266 ECVs (Loser)
 In this system, Bush wins, as he narrowly wins key battleground states, including Florida, despite Gore’s national popular vote lead.
 
-District-Wide Winner-Take-All + State-Wide At-Large Votes:
+**District-Wide Winner-Take-All + State-Wide At-Large Votes:**
 Bush: 278 ECVs (Winner)
 Gore: 260 ECVs (Loser)
 This hybrid system gives Bush a slightly larger margin due to the district-level distribution of votes, which tends to favor Republicans in many of the congressional districts.
 
-State-Wide Proportional:
+**State-Wide Proportional:**
 Gore: 290 ECVs (Winner)
 Bush: 248 ECVs (Loser)
 This system allocates ECVs proportionally based on the percentage of the popular vote. Gore wins more ECVs because his share of the popular vote is larger nationwide, leading to a more direct representation of voter preferences.
 
-National Proportional:
+**National Proportional:**
 Gore: 286 ECVs (Winner)
 Bush: 252 ECVs (Loser)
-In a national proportional system, Gore's larger share of the national vote translates to a clear victory, highlighting the disparity between the Electoral College and the popular vote outcome.
+In a national proportional system, Gore's larger share of the national vote translates to a clear victory, highlighting the disparity between the Electoral College and the popular vote outcome. In the 2000 election, the State-Wide Winner-Take-All system favored George W. Bush, despite Al Gore winning the popular vote. The National Proportional system would have resulted in a Gore victory, aligning the ECVs more closely with the popular vote. This highlights how winner-take-all methods can distort the will of the majority.
 
-In the 2000 election, the State-Wide Winner-Take-All system favored George W. Bush, despite Al Gore winning the popular vote. The National Proportional system would have resulted in a Gore victory, aligning the ECVs more closely with the popular vote. This highlights how winner-take-all methods can distort the will of the majority.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-summary: View Code
+
+# State-Wide Winner-Take-All
+state_wide_winner_only <- state_wide_winner_take_all |>
+  group_by(year) |>
+  mutate(winner_party = if_else(total_ecv == max(total_ecv), party_simplified, NA_character_),
+         winning_candidate = if_else(total_ecv == max(total_ecv), candidate, NA_character_)) |>
+  ungroup() |>
+  select(year, party_simplified, winning_candidate, winner_party, total_ecv) |>
+  filter(!is.na(winning_candidate))
+
+
+# District-Wide Winner-Take-All + State-Wide At Large Votes
+district_wide_winner_only <- ecv_combined |>
+  group_by(year) |>
+  mutate(winner_party = if_else(total_ecv == max(total_ecv), party, NA_character_),
+         winning_candidate = if_else(total_ecv == max(total_ecv), candidate, NA_character_)) |>
+  ungroup() |>
+  select(year, winning_candidate, winner_party, total_ecv) |>
+  filter(!is.na(winning_candidate))
+
+# State-Wide Proportional
+state_prop_winner_only <- state_wide_totals |>
+  group_by(year) |>
+  mutate(winner_party = if_else(total_ecv == max(total_ecv), party_simplified, NA_character_),
+         winning_candidate = if_else(total_ecv == max(total_ecv), candidate, NA_character_)) |>
+  ungroup() |>
+  select(year, winning_candidate, winner_party, total_ecv) |>
+  filter(!is.na(winning_candidate))
+
+# Nation-Wide Proportional
+nation_prop_winner_only <- nation_wide_summary |>
+  group_by(year) |>
+  mutate(winner_party = if_else(prop_ecv == max(prop_ecv), party_simplified, NA_character_),
+         winning_candidate = if_else(prop_ecv == max(prop_ecv), candidate, NA_character_)) |>
+  ungroup() |>
+  select(year, winning_candidate, winner_party, prop_ecv) |>
+  filter(!is.na(winning_candidate))
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-summary: View Code
+# Join the four datasets by 'year'
+winners_comparison <- state_wide_winner_only |>
+  left_join(district_wide_winner_only, by = "year", suffix = c("_state_wide", "_district_wide")) |>
+  left_join(state_prop_winner_only, by = "year", suffix = c("", "_state_prop")) |>
+  left_join(nation_prop_winner_only, by = "year", suffix = c("", "_nation_prop"))
+
+# Select relevant columns for displaying the result
+winners_comparison <- winners_comparison |>
+  select(-party_simplified)
+
+# Display the results for 2000
+winners_comparison |> 
+  filter(year == 2000) |>
+  gt() |>
+  tab_header(
+    title = "Comparison of Winning Candidates and Parties by ECV Allocation System"
+  ) |>
+  cols_label( # Display column names
+    year = "Year",
+    winning_candidate_state_wide = "Winning Candidate (State-Wide)",
+    winner_party_state_wide = "Winner Party (State-Wide)",
+    total_ecv_state_wide = "Total ECV (State-Wide)",
+    winning_candidate_district_wide = "Winning Candidate (District-Wide)",
+    winner_party_district_wide = "Winner Party (District-Wide)",
+    total_ecv_district_wide = "Total ECV (District-Wide)",
+    winning_candidate = "Winning Candidate (State Proportional)",
+    winner_party = "Winner Party (State Proportional)",
+    total_ecv = "Total ECV (State Proportional)",
+    winning_candidate_nation_prop = "Winning Candidate (Nation Proportional)",
+    winner_party_nation_prop = "Winner Party (Nation Proportional)",
+    prop_ecv = "Total ECV (Nation Proportional)"
+  ) |>
+  tab_spanner(
+    label = "State-Wide Winner-Take-All",
+    columns = c(winning_candidate_state_wide, winner_party_state_wide, total_ecv_state_wide)
+  ) |>
+  tab_spanner(
+    label = "District-Wide Winner-Take-All + State-Wide At Large Votes",
+    columns = c(winning_candidate_district_wide , winner_party_district_wide, total_ecv_district_wide)
+  ) |>
+  tab_spanner(
+    label = "State-Wide Proportional",
+    columns = c(winning_candidate, winner_party, total_ecv)
+  ) |>
+  tab_spanner(
+    label = "Nation-Wide Proportional",
+    columns = c(winning_candidate_nation_prop, winner_party_nation_prop, prop_ecv)
+  ) |>
+  tab_style(
+    style = list(cell_text(weight = "bold")),
+    locations = cells_column_labels(columns = 1:13)
+  )
+```
+The proportional allocation methods also tend to assign a small number of ECV to non Republican or Democrat parties such as Other or Libertarian as seen below. However, since the number of ECV across the nation are relatively low in comparison, I will be filtering them out in the second plot below. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-summary: View Code
+
+winners_2000 <- bind_rows( # bind different allocation methods together to plot in a facet
+  state_wide_winner_take_all |> filter(year == 2000) |>
+    mutate(allocation_method = "State-Wide Winner-Take-All"),
+  ecv_combined |> filter(year == 2000) |>
+    mutate(allocation_method = "District-Wide Winner-Take-All + State-Wide At Large Votes") |>
+    rename(party_simplified = party),
+  state_wide_totals |> filter(year == 2000) |>
+    mutate(allocation_method = "State-Wide Proportional"),
+  nation_wide_summary |> filter(year == 2000) |>
+    mutate(allocation_method = "Nation-Wide Proportional") |>
+    rename(total_ecv = prop_ecv)
+)
+
+ggplot(winners_2000, aes(x = party_simplified, y = total_ecv, fill = party_simplified)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(
+    aes(label = total_ecv), # label with ECV
+    position = position_stack(vjust = 0.5), color = "black", size = 3  # 
+  )+
+  facet_wrap(~allocation_method, scales = "free_y") +  # Facet by allocation method
+  labs(
+    title = "Total ECV Votes by Allocation Method (2000)",
+    x = "Party",
+    y = "Total ECV Votes",
+    fill = "Party"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(
+    values = c("REPUBLICAN" = "red", "DEMOCRAT" = "blue", "LIBERTARIAN" = "beige", "OTHER" = "gray")  
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotate party names for better visibility
+    legend.position = "none" # Hide legend since it's already represented by colors
+  )
+```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-summary: View Code
+winners_2000_na <- winners_2000 |>   filter(party_simplified %in% c("DEMOCRAT", "REPUBLICAN"))
+
+ggplot(winners_2000_na, aes(x = party_simplified, y = total_ecv, fill = party_simplified)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(
+    aes(label = total_ecv), # label with ECV
+    position = position_stack(vjust = 0.5), color = "black", size = 3  # 
+  ) +
+  facet_wrap(~allocation_method, scales = "free_y") +  # Facet by allocation method
+  labs(
+    title = "Total ECV Votes by Allocation Method (2000)",
+    x = "Party",
+    y = "Total ECV Votes",
+    fill = "Party"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(
+    values = c("REPUBLICAN" = "red", "DEMOCRAT" = "blue")  
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotate party names for better visibility
+    legend.position = "none" # Hide legend since it's already represented by colors
+  )
+```
 - Winner-Take-All systems: In this system, narrow victories in key swing states have an outsized impact, making it possible for a candidate to lose the popular vote but win the Electoral College.
 - Proportional systems: These systems provide a more accurate reflection of the national popular vote and reduce the disproportionate weight given to small states or swing states.
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-summary: View Code
+
+# Display the results for all years
+winners_comparison |> 
+  gt() |>
+  tab_header(
+    title = "Comparison of Winning Candidates and Parties by ECV Allocation System"
+  ) |>
+  cols_label( # Display column names
+    year = "Year",
+    winning_candidate_state_wide = "Winning Candidate (State-Wide)",
+    winner_party_state_wide = "Winner Party (State-Wide)",
+    total_ecv_state_wide = "Total ECV (State-Wide)",
+    winning_candidate_district_wide = "Winning Candidate (District-Wide)",
+    winner_party_district_wide = "Winner Party (District-Wide)",
+    total_ecv_district_wide = "Total ECV (District-Wide)",
+    winning_candidate = "Winning Candidate (State Proportional)",
+    winner_party = "Winner Party (State Proportional)",
+    total_ecv = "Total ECV (State Proportional)",
+    winning_candidate_nation_prop = "Winning Candidate (Nation Proportional)",
+    winner_party_nation_prop = "Winner Party (Nation Proportional)",
+    prop_ecv = "Total ECV (Nation Proportional)"
+  ) |>
+  tab_spanner(
+    label = "State-Wide Winner-Take-All",
+    columns = c(winning_candidate_state_wide, winner_party_state_wide, total_ecv_state_wide)
+  ) |>
+  tab_spanner(
+    label = "District-Wide Winner-Take-All + State-Wide At Large Votes",
+    columns = c(winning_candidate_district_wide , winner_party_district_wide, total_ecv_district_wide)
+  ) |>
+  tab_spanner(
+    label = "State-Wide Proportional",
+    columns = c(winning_candidate, winner_party, total_ecv)
+  ) |>
+  tab_spanner(
+    label = "Nation-Wide Proportional",
+    columns = c(winning_candidate_nation_prop, winner_party_nation_prop, prop_ecv)
+  ) |>
+  tab_style(
+    style = list(cell_text(weight = "bold")),
+    locations = cells_column_labels(columns = 1:13)
+  )
+```
 
 The State-Wide Proportional and National Proportional allocation systems appear to be the fairest in terms of reflecting the popular vote. These systems ensure that each vote contributes to the outcome, reducing the disproportionate influence of small states and the swing state effect. On the other hand, the State-Wide Winner-Take-All and District-Wide Winner-Take-All systems can create a bias toward smaller states and swing states. Smaller states can disproportionately impact the outcome of the election. 
 
 ## What Does "Fairness" Mean?
 When I think about fairness in the context of ECV allocation, it generally relates to how well the system:
+
 1. Represents the popular vote: Does the distribution of ECVs accurately reflect the number of votes cast for each candidate? A system that over-represents or under-represents certain groups could be considered unfair.
+
 2. Accounts for each state: In systems like the current winner-take-all method, small states with fewer voters might have a disproportionately large influence in electing a president compared to larger states. In contrast, a proportional system might mitigate this imbalance.
+
 3. Minimizes “winner-take-all” advantages: A system where a candidate wins by just a small margin but takes all of a state’s ECVs could be seen as unfair because the losing candidate might have had broad support across the state, but doesn't get any representation.
 
 ### Truthfulness Score 
 Claim: claim under evaluation is: "The Electoral College system is biased and over-represents smaller states, giving them an unfair advantage in electing the president."
 The scale I'll use is a 5-point scale, ranging from 1 to 5, where:
+
 1. **False** – The claim is completely inaccurate, with no evidence to support it.
 2. **Mostly False** – The claim contains significant inaccuracies or overgeneralizations, with some misleading aspects.
 3. **Half-True** – The claim is partially accurate but misses key details or context that would provide a more complete picture.
