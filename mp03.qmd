@@ -286,13 +286,12 @@ president_ranking <- presidential_comparison |>
 ggplot(president_ranking, aes(x = reorder(party_simplified, average_vote_difference), y = average_vote_difference, fill = party_simplified)) +
   geom_bar(stat = "identity", show.legend = FALSE) +
   coord_flip() +
-  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red"))
-  labs(
+  scale_fill_manual(values = c("DEMOCRAT" = "blue", "REPUBLICAN" = "red")) +
+  labs( 
     title = "Presidential Popularity vs. Congressional Co-partisans",
     x = "President",
     y = "Average Vote Difference (Presidential - Congressional)",
-    subtitle = "Higher values indicate greater presidential popularity relative to congressional candidates"
-  ) +
+    subtitle = "Higher values indicate greater presidential popularity relative to congressional candidates") +
   theme_minimal()
 
 # Line plot with trend lines for each party
@@ -990,11 +989,7 @@ nation_prop_winner_only <- nation_wide_summary |>
   ungroup() |>
   select(year, winning_candidate, winner_party, prop_ecv) |>
   filter(!is.na(winning_candidate))
-```
 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-summary: View Code
 # Join the four datasets by 'year'
 winners_comparison <- state_wide_winner_only |>
   left_join(district_wide_winner_only, by = "year", suffix = c("_state_wide", "_district_wide")) |>
@@ -1010,7 +1005,7 @@ winners_comparison |>
   filter(year == 2000) |>
   gt() |>
   tab_header(
-    title = "Comparison of Winning Candidates and Parties by ECV Allocation System"
+    title = "Winning Candidates by ECV Allocation Method (2000)"
   ) |>
   cols_label( # Display column names
     year = "Year",
@@ -1162,6 +1157,43 @@ winners_comparison |>
   tab_style(
     style = list(cell_text(weight = "bold")),
     locations = cells_column_labels(columns = 1:13)
+  )
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-summary: View Code
+
+winners_all <- bind_rows( # bind different allocation methods together to plot in a facet
+  state_wide_winner_only |> 
+    mutate(allocation_method = "State-Wide Winner-Take-All"),
+  district_wide_winner_only |> 
+    mutate(allocation_method = "District-Wide Winner-Take-All + State-Wide At Large Votes"),
+  state_prop_winner_only |>
+    mutate(allocation_method = "State-Wide Proportional"),
+  nation_prop_winner_only |>
+    mutate(allocation_method = "Nation-Wide Proportional") |>
+    rename(total_ecv = prop_ecv)
+)
+ggplot(winners_all, aes(x = year, y = total_ecv, fill = winner_party)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(
+    aes(label = total_ecv, y = total_ecv + 20), # label with ECV and offset labels above bars
+    position = position_dodge(width = 0.8), color = "black", size = 3  # 
+  ) +
+  facet_wrap(~allocation_method, scales = "free_y") + # Facet by method, each year will have its own plot
+  scale_fill_manual(
+    values = c("REPUBLICAN" = "red", "DEMOCRAT" = "blue") )+
+  labs(
+    title = "Electoral College Votes by Method and Year",
+    x = "Year",
+    y = "Total ECV",
+    fill = "Party"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1),
+    legend.position = "bottom"
   )
 ```
 
