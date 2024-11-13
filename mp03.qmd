@@ -927,12 +927,6 @@ nation_wide_summary |> gt() |>
 ```
 
 # Evaluating Fairness of ECV Allocation Schemes
-Based on these allocation strategies, compare the winning presidential candidate with the actual historical winner.
-
-What patterns do you see? Are the results generally consistent or are one or more methods systematically more favorable to one party?
-  
-For the district-level winner-take-all, you may assume that the presidential candidate of the same party as the congressional representative wins that election.
-
 ## Fact Check Example: The 2000 U.S. Presidential Election
 The 2000 U.S. presidential election between George W. Bush (Republican) and Al Gore (Democrat) provides a compelling case study of the Electoral College’s impact. Bush won the presidency despite losing the popular vote by approximately 500,000 votes. This resulted in widespread criticism of the electoral system.
 
@@ -1020,18 +1014,18 @@ winners_comparison |>
   ) |>
   cols_label( # Display column names
     year = "Year",
-    winning_candidate_state_wide = "Winning Candidate (State-Wide)",
-    winner_party_state_wide = "Winner Party (State-Wide)",
-    total_ecv_state_wide = "Total ECV (State-Wide)",
-    winning_candidate_district_wide = "Winning Candidate (District-Wide)",
-    winner_party_district_wide = "Winner Party (District-Wide)",
-    total_ecv_district_wide = "Total ECV (District-Wide)",
-    winning_candidate = "Winning Candidate (State Proportional)",
-    winner_party = "Winner Party (State Proportional)",
-    total_ecv = "Total ECV (State Proportional)",
-    winning_candidate_nation_prop = "Winning Candidate (Nation Proportional)",
-    winner_party_nation_prop = "Winner Party (Nation Proportional)",
-    prop_ecv = "Total ECV (Nation Proportional)"
+    winning_candidate_state_wide = "Winning Candidate",
+    winner_party_state_wide = "Winner Party",
+    total_ecv_state_wide = "Total ECV",
+    winning_candidate_district_wide = "Winning Candidate",
+    winner_party_district_wide = "Winner Party",
+    total_ecv_district_wide = "Total ECV",
+    winning_candidate = "Winning Candidate",
+    winner_party = "Winner Party",
+    total_ecv = "Total ECV",
+    winning_candidate_nation_prop = "Winning Candidate",
+    winner_party_nation_prop = "Winner Party",
+    prop_ecv = "Total ECV"
   ) |>
   tab_spanner(
     label = "State-Wide Winner-Take-All",
@@ -1136,18 +1130,18 @@ winners_comparison |>
   ) |>
   cols_label( # Display column names
     year = "Year",
-    winning_candidate_state_wide = "Winning Candidate (State-Wide)",
-    winner_party_state_wide = "Winner Party (State-Wide)",
-    total_ecv_state_wide = "Total ECV (State-Wide)",
-    winning_candidate_district_wide = "Winning Candidate (District-Wide)",
-    winner_party_district_wide = "Winner Party (District-Wide)",
-    total_ecv_district_wide = "Total ECV (District-Wide)",
-    winning_candidate = "Winning Candidate (State Proportional)",
-    winner_party = "Winner Party (State Proportional)",
-    total_ecv = "Total ECV (State Proportional)",
-    winning_candidate_nation_prop = "Winning Candidate (Nation Proportional)",
-    winner_party_nation_prop = "Winner Party (Nation Proportional)",
-    prop_ecv = "Total ECV (Nation Proportional)"
+    winning_candidate_state_wide = "Winning Candidate",
+    winner_party_state_wide = "Winner Party",
+    total_ecv_state_wide = "Total ECV",
+    winning_candidate_district_wide = "Winning Candidate",
+    winner_party_district_wide = "Winner Party",
+    total_ecv_district_wide = "Total ECV",
+    winning_candidate = "Winning Candidate",
+    winner_party = "Winner Party",
+    total_ecv = "Total ECV",
+    winning_candidate_nation_prop = "Winning Candidate",
+    winner_party_nation_prop = "Winner Party",
+    prop_ecv = "Total ECV"
   ) |>
   tab_spanner(
     label = "State-Wide Winner-Take-All",
