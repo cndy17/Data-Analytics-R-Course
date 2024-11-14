@@ -1195,6 +1195,30 @@ ggplot(winners_all, aes(x = year, y = total_ecv, fill = winner_party)) +
     axis.text.x = element_text(angle = 90, hjust = 1),
     legend.position = "bottom"
   )
+
+library(gganimate)
+
+ggplot(winners_all, aes(x = year, y = total_ecv, fill = winner_party)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Create bar plot with dodged bars for each party
+  geom_text(
+    aes(label = total_ecv, y = total_ecv + 20),  # Label ECV values with an offset to appear above bars
+    position = position_dodge(width = 0.8), color = "black", size = 3  # Text properties
+  ) +
+  scale_fill_manual(
+    values = c("REPUBLICAN" = "red", "DEMOCRAT" = "blue")  # Party colors
+  ) +
+  labs(
+    title = "Electoral College Votes by Method and Year: {current_frame}",
+    x = "Year",
+    y = "Total ECV",
+    fill = "Party"
+  ) +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),  # Rotate x-axis labels for better readability
+    legend.position = "bottom")  +  # Position the legend at the bottom 
+  transition_manual(allocation_method) + # Animate by allocation_method
+  enter_fade() +  # Fade in new bars for the new allocation method
+  exit_fade()
 ```
 
 The State-Wide Proportional and National Proportional allocation systems appear to be the fairest in terms of reflecting the popular vote. These systems ensure that each vote contributes to the outcome, reducing the disproportionate influence of small states and the swing state effect. On the other hand, the State-Wide Winner-Take-All and District-Wide Winner-Take-All systems can create a bias toward smaller states and swing states. Smaller states can disproportionately impact the outcome of the election. 
