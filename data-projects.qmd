@@ -1,7 +1,7 @@
 ---
 title: "Data Projects"
 ---
-### US Electoral College
+### Elect
 
 [![](images/voted.jpg){width="100"}](https://cndy17.github.io/STA9750-2024-FALL/mp03.html)
 
