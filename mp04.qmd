@@ -1,0 +1,539 @@
+---
+title: "Retirement Plan Evaluation"
+author: "Cindy Li"
+---
+
+# Introduction
+
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+
+```
+# Data Ingesting
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load Libraries
+if (!require("readr")) install.packages("readr")
+if (!require("sf")) install.packages("sf")
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("tidyr")) install.packages("tidyr")
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("DT")) install.packages("DT")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("gt")) install.packages("gt")
+if (!require("plotly")) install.packages("plotly")
+if (!require("purr")) install.packages("purr")
+if (!require("httr2")) install.packages("httr2")
+
+library(readr)
+library(sf)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(DT)
+library(ggplot2)
+library(gt)
+library(plotly)
+library(purrr)
+library(httr2)
+
+```
+
+## Load Data
+In this project, I am using data from FRED and Alpha Vantage using private API keys.
+The data sets I will be pulling are as follows:
+**FRED:**
+- Average Hourly Earnings of All Employees
+- CPI for All Urban Consumers: U.S. City Average, All Items
+- 10-Year Treasury Constant Maturity Rate (Bond Market)
+- 3-Month Treasury Bill: Secondary Market Rate (Short Term Debt)
+**Alpha Vantage:**
+- SPY US Equity Market Returns
+- All Country World Index (International Equity Market Returns)
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Wage growth
+# FRED: AHETPI (Average Hourly Earnings of All Employees, Total Private)
+wage_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=AHETPI&api_key=", fred_key, "&file_type=json&frequency=m")
+wage_response <- request(wage_url) |> req_perform()
+wage_data <- resp_body_json(wage_response)[["observations"]]
+wage_df <- data.frame(date = sapply(wage_data, function(x) x$date),
+                      wage = sapply(wage_data, function(x) as.numeric(x$value)))
+wage_df$date <- as.Date(wage_df$date)
+
+# Inflation
+# FRED: CPIAUCSL (CPI for All Urban Consumers: U.S. City Average, All Items)
+inflation_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&api_key=", fred_key, "&file_type=json&frequency=m")
+inflation_response <- request(inflation_url) |> req_perform()
+inflation_data <- resp_body_json(inflation_response)[["observations"]]
+inflation_df <- data.frame(date = sapply(inflation_data, function(x) x$date),
+                           inflation = sapply(inflation_data, function(x) as.numeric(x$value)))
+inflation_df$date <- as.Date(inflation_df$date)
+
+# US Equity Market total returns
+# AlphaVantage: TIME_SERIES_DAILY
+# API Request for US Equity Market Returns (SPY)
+spy_url <- paste0("https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&apikey=", alpha_key, "&outputsize=full&datatype=json")
+spy_response <- request(spy_url) |> req_perform()
+spy_data <- resp_body_json(spy_response)[["Time Series (Daily)"]]
+spy_df <- data.frame(date = as.Date(names(spy_data)),
+                     adj_close = sapply(spy_data, function(x) as.numeric(x[["4. close"]])))
+# Calculate daily returns based on the unadjusted close price
+spy_df$daily_return <- c(NA, diff(spy_df$adj_close) / head(spy_df$adj_close, -1))
+spy_df <- spy_df[complete.cases(spy_df), ]   # Remove rows with NA
+
+# International Equity Market total returns 
+# All Country World Index
+# AlphaVantage: TIME_SERIES_DAILY_ADJUSTED
+# API Request for International Equity Market Returns:
+acwi_url <- paste0("https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=ACWI&apikey=", alpha_key, "&outputsize=full&datatype=json")
+acwi_response <- request(acwi_url) |> req_perform()
+acwi_data <- resp_body_json(acwi_response)[["Time Series (Daily)"]]
+
+# Calculate daily returns based on adjusted closing price
+acwi_df <- data.frame(date = as.Date(names(acwi_data)),
+                      adj_close = sapply(acwi_data, function(x) as.numeric(x[["4. close"]])))
+acwi_df$daily_return <- c(NA, diff(acwi_df$adj_close) / head(acwi_df$adj_close, -1))
+acwi_df <- acwi_df[complete.cases(acwi_df), ]
+
+# Bond market total returns
+# FRED: GS10 (10-Year Treasury Constant Maturity Rate)
+bond_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=GS10&api_key=", fred_key, "&file_type=json&frequency=m")
+bond_response <- request(bond_url) |> req_perform()
+bond_data <- resp_body_json(bond_response)[["observations"]]
+bond_df <- data.frame(date = sapply(bond_data, function(x) x$date),
+                      bond_return = sapply(bond_data, function(x) as.numeric(x$value)))
+bond_df$date <- as.Date(bond_df$date)
+
+# Short-term debt returns7
+# FRED: DTB3 (3-Month Treasury Bill: Secondary Market Rate)
+debt_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=DTB3&api_key=", fred_key, "&file_type=json&frequency=m")
+debt_response <- request(debt_url) |> req_perform()
+debt_data <- resp_body_json(debt_response)[["observations"]]
+debt_df <- data.frame(date = sapply(debt_data, function(x) x$date),
+                      debt_return = sapply(debt_data, function(x) as.numeric(x$value)))
+debt_df$date <- as.Date(debt_df$date)
+
+```
+
+## Data Processing
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Ensure all data frames are on a monthly frequency (aggregate if necessary) 
+# to have years of data but less granularity
+wage_df$date <- as.Date(wage_df$date)
+inflation_df$date <- as.Date(inflation_df$date)
+bond_df$date <- as.Date(bond_df$date)
+debt_df$date <- as.Date(debt_df$date)
+spy_df$date <- as.Date(spy_df$date)
+acwi_df$date <- as.Date(acwi_df$date)
+
+# Aggregate data to monthly frequency
+WAGE <- aggregate(wage_df$wage, by = list(date = format(wage_df$date, "%Y-%m-01")), FUN = mean, na.rm = TRUE)
+INFLATION <- aggregate(inflation_df$inflation, by = list(date = format(inflation_df$date, "%Y-%m-01")), FUN = mean, na.rm = TRUE)
+BOND <- aggregate(bond_df$bond_return, by = list(date = format(bond_df$date, "%Y-%m-01")), FUN = mean, na.rm = TRUE)
+DEBT <- aggregate(debt_df$debt_return, by = list(date = format(debt_df$date, "%Y-%m-01")), FUN = mean, na.rm = TRUE)
+
+# Aggregate SPY and ACWI data to monthly frequency (from daily data)
+SPY <- aggregate(spy_df$daily_return, by = list(date = format(spy_df$date, "%Y-%m-01")), FUN = mean, na.rm = TRUE)
+ACWI <- aggregate(acwi_df$daily_return, by = list(date = format(acwi_df$date, "%Y-%m-01")), FUN = mean, na.rm = TRUE)
+
+WAGE$date <- as.Date(WAGE$date)
+INFLATION$date <- as.Date(INFLATION$date)
+BOND$date <- as.Date(BOND$date)
+DEBT$date <- as.Date(DEBT$date)
+SPY$date <- as.Date(SPY$date)
+ACWI$date <- as.Date(ACWI$date)
+
+# Rename columns to avoid duplicates
+WAGE <- WAGE |> rename(wage = x)
+INFLATION <- INFLATION |> rename(inflation_rate = x)
+SPY <- SPY |> rename(equity_return_SPY = x)
+ACWI <- ACWI |> rename(equity_return_ACWI = x)
+BOND <- BOND |> rename(bond_return = x)
+DEBT <- DEBT |> rename(debt_return = x)
+
+# Merge all dataframes into one combined dataset
+combined_data <- reduce(list(WAGE, INFLATION, SPY, ACWI, BOND, DEBT), 
+                        function(x, y) merge(x, y, by = "date", all = TRUE))
+```
+
+# Initial Analysis
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+long_run_averages <- combined_data |>
+  summarise(
+    wage_avg = mean(wage, na.rm = TRUE),
+    inflation_avg = mean(inflation_rate, na.rm = TRUE),
+    equity_return_SPY_avg = mean(equity_return_SPY, na.rm = TRUE),
+    equity_return_ACWI_avg = mean(equity_return_ACWI, na.rm = TRUE),
+    bond_return_avg = mean(bond_return, na.rm = TRUE),
+    debt_return_avg = mean(debt_return, na.rm = TRUE)
+  )
+# Table Display
+averages_flip <- long_run_averages |>
+  pivot_longer(cols = everything(), names_to = "Metric", values_to = "Average") |>
+  mutate(Metric = recode(Metric,
+                         wage_avg = "Average Wage",
+                         inflation_avg = "Average Inflation Rate (%)",
+                         equity_return_SPY_avg = "Average SPY Equity Return (%)",
+                         equity_return_ACWI_avg = "Average ACWI Equity Return (%)",
+                         bond_return_avg = "Average Bond Return (%)",
+                         debt_return_avg = "Average Debt Return (%)"))
+averages_flip|>
+  gt() |>
+  tab_header(title = "Long-Run Averages") |>
+  cols_label(Metric = "Financial Metric",
+    Average = "Average Value") |>
+  fmt_number(columns = vars(Average),
+    decimals = 4)
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+long_run_data <- combined_data|>
+  select(
+    wage_growth, inflation_rate, equity_return_SPY, equity_return_ACWI, bond_return, debt_return
+  ) |>
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value")
+
+ggplot(long_run_data, aes(x = "", y = Value)) +
+  geom_boxplot() +
+  facet_wrap(~ Variable, scales = "free_y") +  # Facets for each variable with independent y-axis scales
+  labs(title = "Boxplot of Financial Variables", 
+       x = "", 
+       y = "Values") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank())
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+cor_matrix <- cor(combined_data[, -1], use = "complete.obs")
+library(corrplot)
+corrplot(cor_matrix, method = "circle", type = "upper", order = "hclust")
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+correlation_heatmap <- cor_matrix|>
+  as_tibble(rownames = "variable1") |>
+  pivot_longer(cols = -variable1, names_to = "variable2", values_to = "correlation")
+
+ggplot(correlation_heatmap, aes(x = variable1, y = variable2, fill = correlation)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  labs(title = "Correlation Heatmap",
+       x = "Variable", y = "Variable", fill = "Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Comparison of TRS and ORP
+**TRS:** traditional pension plan: after retirement, the employer pays employees a fraction of their salary until death. aka “defined-benefit plan”
+- benefit is fixed
+- employer takes the market risk
+- If the market underperforms expectations, CUNY has to “pony up” and make up the gap
+- If the market overperforms expectations, CUNY pockets the excess balance.
+
+## Teachers Retirement System (TRS)
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+
+# Calculate Wage Growth
+WAGE <- WAGE |> mutate(wage_growth_percent = (wage - lag(wage)) / lag(wage)) 
+initial_salary <- 50000  # Hypothetical starting salary
+start_date <- "2004-10-01"
+end_date <- "2024-10-01" # 20 years
+wage_20yrs <- WAGE |> 
+  filter(date >= as.Date(start_date), !is.na(date))
+
+salary_data <- wage_20yrs |>
+  mutate(
+    salary = initial_salary * cumprod(1 + lag(wage_growth_percent, default = 0))
+  )
+
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# TRS Contribution Calculation
+trs_contribution_rate <- function(salary) {
+  if (salary <= 45000) return(0.03)
+  else if (salary <= 55000) return(0.035)
+  else if (salary <= 75000) return(0.045)
+  else if (salary <= 100000) return(0.0575)
+  else return(0.06)  # For salaries above 100,000
+}
+
+# 2024 TRS Contribution Calculation
+# last 3 years of salary
+salary_3yrs <- salary_data |> filter(date >= "2021-10-01")
+years_of_service = 20
+final_average_salary = mean(salary_3yrs$salary)
+retirement_benefit <- function(n, fas) {
+  if (n < 20) return (0.0167 * fas * n)
+  else if (n == 20) return(0.0175 * fas * n)
+  else return((0.35 + 0.02 * (n - 20)) * fas)
+}
+TRS_benefit = retirement_benefit(years_of_service, final_average_salary)
+
+```
+
+## Optional Retirement Plan (ORP)
+**ORP:** closer to a 401k plan, employee and employer make contribution to retirement account that is invested in mutual funds. aka “defined-contribution plan”
+- only contribution is fixed
+- depends on market performance
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# follow Fidelity Freedom Fund 
+orp_contribution_rate <- function(salary) {
+  if (salary <= 45000) return(0.03)
+  else if (salary <= 55000) return(0.035)
+  else if (salary <= 75000) return(0.045)
+  else if (salary <= 100000) return(0.0575)
+  else return(0.06)
+}
+employee_contrib_rate <- function(salary) {
+  return(salary * orp_contribution_rate(salary))
+}
+
+# US Equities
+us_equities_rate <- function(age) {
+  if (age >= 25 && age <= 49) {
+    return(0.54)
+  } else if (age >= 50 && age <= 59) {
+    return(0.47)
+  } else if (age >= 60 && age <= 74) {
+    return(0.34)
+  } else if (age >= 75) {
+    return(0.19)
+  } else {
+    return(NA)
+  }
+}
+
+# International Equities
+international_equities_rate <- function(age) {
+  if (age >= 25 && age <= 49) {
+    return(0.36)
+  } else if (age >= 50 && age <= 59) {
+    return(0.32)
+  } else if (age >= 60 && age <= 74) {
+    return(0.23)
+  } else if (age >= 75) {
+    return(0.13)
+  } else {
+    return(NA)
+  }
+}
+
+# Bonds
+bonds_rate <- function(age) {
+  if (age >= 25 && age <= 49) {
+    return(0.10)
+  } else if (age >= 50 && age <= 59) {
+    return(0.21)
+  } else if (age >= 60 && age <= 74) {
+    return(0.43)
+  } else if (age >= 75) {
+    return(0.62)
+  } else {
+    return(NA_real_) 
+  }
+}
+
+# Short Term Debt
+short_term_debt_rate <- function(age) {
+  if (age >= 75) {
+    return(0.06)  # Short-term debt only applies to age 75+
+  } else {
+    return(0.00)  # No short-term debt allocation for ages below 75
+  }
+}
+
+# Fixed Employer Contribution at 7 years
+employer_contrib_rate <- function(years) {
+  if (years <= 7) return(0.08)
+  else return(0.10)
+}
+```
+
+### Portfolio Value
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+calculate_portfolio_value <- function(start_salary, years_worked, retirement_age, current_age) {
+  total_contrib <- 0
+  portfolio_value <- 0
+  current_salary <- start_salary
+  
+  # Simulate annual contributions and growth until retirement
+  for (age in current_age:(retirement_age - 1)) {
+    employee_contrib <- employee_contrib_rate(current_salary)
+    employer_contrib <- employee_contrib * employer_contrib_rate(min(age, years_worked))
+        total_contrib <- employee_contrib + employer_contrib
+    portfolio_value <- portfolio_value + total_contrib
+    
+    # Asset allocation based on age
+    us_equities_pct <- us_equities_rate(age)
+    international_pct <- international_equities_rate(age)
+    bonds_pct <- bonds_rate(age)
+    short_term_pct <- short_term_debt_rate(age)
+    
+    # Assume average annual returns for each asset class (simplified)
+    us_equities_return <- 0.07
+    international_return <- 0.06
+    bonds_return <- 0.03
+    short_term_return <- 0.02
+    
+    # Calculate portfolio growth based on allocation
+    portfolio_value <- portfolio_value * (1 + us_equities_pct * us_equities_return +
+                                            international_pct * international_return +
+                                            bonds_pct * bonds_return +
+                                            short_term_pct * short_term_return)
+    
+    # Simulate salary increase (e.g., 3% annually)
+    current_salary <- current_salary * 1.03
+  }
+  
+  return(portfolio_value)
+}
+
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# TRS: Calculate the First Month Retirement Benefit**
+# Monthly TRS Benefit (assuming TRS benefit is paid monthly)
+trs_monthly_benefit <- trs_benefit / 12
+
+# 2. **ORP: Calculate Portfolio Value at Retirement**
+# the first month’s payout is typically a 4% withdrawal rate
+# Sustainable withdrawal rate (e.g., 4% annually, which is 0.33% monthly)
+orp_monthly_withdrawal <- orp_portfolio_value * 0.04 / 12
+
+# 3. **Comparison of TRS and ORP for First Month of Retirement**
+comparison_table <- tibble(
+  Plan = c("TRS", "ORP"),
+  First_Month_Retirement_Value = c(trs_monthly_benefit, orp_monthly_withdrawal)
+)
+
+# Print the comparison table
+comparison_table
+```
+# Long Term Average Analysis
+## TRS Withdrawals After Retirement
+The inflation adjustement is effective each September and the CPI used is the aggregate monthly CPI of the previous 12 months; so the September 2024 adjustment depends on the CPI from September 2023 to August 2024.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# TRS
+# Set the number of retirement years
+
+# TRS Monthly Benefit Calculation
+# Function to calculate inflation adjustment based on CPI
+inflation_adjustment <- function(CPI) {
+  adjustment <- round(CPI * 0.5, 1)  # 50% of CPI increase, rounded to nearest 0.1%
+  if (adjustment < 0.01) adjustment <- 0.01  # Floor at 1%
+  if (adjustment > 0.03) adjustment <- 0.03  # Cap at 3%
+  return(adjustment)
+}
+
+# Simulating pension benefit with inflation adjustments
+simulate_trs_with_inflation <- function(initial_pension, inflation_data, retirement_date, end_date) {
+  pension_stream <- numeric(total_years * 12)  # Total number of months (total_years * 12)
+  pension_stream[1] <- initial_pension  # Set the initial pension value for the first month
+  current_pension <- initial_pension
+  for (current_month in 2:length(pension_stream)) {
+    current_date <- seq(retirement_date, length.out = length(pension_stream), by = "month")[current_month]
+    # The inflation adjustment is effective each September
+    if (format(current_date, "%m") == "09") {
+      inflation_data_recent <- inflation_data[inflation_data$date < current_date,]
+      last_12_months_inflation <- tail(inflation_data_recent$inflation_rate, 12)
+      CPI <- mean(last_12_months_inflation)  # Use the average inflation of the last 12 months
+      adjustment <- inflation_adjustment(CPI)
+      current_pension <- current_pension * (1 + adjustment)
+    }
+    pension_stream[current_month] <- current_pension
+  }
+  return(pension_stream)
+}
+
+# using past infation rates due to data availability
+# TRS benefit is assumed to be a fixed percentage of the employee's final salary
+monthly_trs_pension <- TRS_benefit / 12 
+retirement_date <- as.Date("2020-10-01")
+end_date <- as.Date("2024-10-01")
+total_years <- 20  
+trs_income_stream <- simulate_trs_with_inflation(monthly_trs_pension, INFLATION, retirement_date, end_date)
+
+# Output the results
+cat("TRS Pension Stream over 20 Years (monthly): \n")
+print(trs_income_stream)
+
+# Optionally, print the total amount received over 20 years
+total_received <- sum(trs_income_stream)
+cat("Total amount received over 20 years: $", round(total_received, 2), "\n")
+
+```
+
+## ORP Withdrawals After Retirement
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# ORP
+withdraw_after_retirement <- function(portfolio_value, withdrawal_rate = 0.04, years_retired = 20) {
+  annual_withdrawal <- portfolio_value * withdrawal_rate
+  remaining_balance <- portfolio_value
+  withdrawals <- numeric(years_retired)
+  for (year in 1:years_retired) {
+    withdrawals[year] <- annual_withdrawal
+    remaining_balance <- remaining_balance - annual_withdrawal
+    remaining_balance <- remaining_balance * 1.03  # 3% growth during retirement
+    if (remaining_balance < 0) {
+      withdrawals[year] <- withdrawals[year] + remaining_balance  # Adjust last withdrawal
+      break
+    }
+  }
+  return(sum(withdrawals))
+}
+
+start_age = 40
+retirement_age = 65
+portfolio_value_at_retirement <- calculate_portfolio_value(initial_salary, years_of_service, retirement_age, start_age)
+total_withdrawals <- withdraw_after_retirement(portfolio_value_at_retirement)
+orp_difference = portfolio_value_at_retirement - total_withdrawals
+
+cat("Portfolio value at retirement: $", round(portfolio_value_at_retirement, 2), "\n")
+cat("Total withdrawals over retirement: $", round(total_withdrawals, 2), "\n")  
+  
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+
+```
+
+# Monte Carlo Analysis
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+
+```
