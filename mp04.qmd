@@ -56,6 +56,12 @@ The data sets I will be pulling are as follows:
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
+
+# AlphaVantage: a commercial stock market data provider
+alpha_key <- readLines("AlphaVantage_key.txt")
+# FRED: the Federal Reserve Economic Data repository
+fred_key <- readLines("fred_key.txt")
+
 # Wage growth
 # FRED: AHETPI (Average Hourly Earnings of All Employees, Total Private)
 wage_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=AHETPI&api_key=", fred_key, "&file_type=json&frequency=m")
@@ -152,11 +158,13 @@ ACWI$date <- as.Date(ACWI$date)
 
 # Rename columns to avoid duplicates
 WAGE <- WAGE |> rename(wage = x)
-INFLATION <- INFLATION |> rename(inflation_rate = x)
+INFLATION <- INFLATION |> rename(CPI = x)
 SPY <- SPY |> rename(equity_return_SPY = x)
 ACWI <- ACWI |> rename(equity_return_ACWI = x)
 BOND <- BOND |> rename(bond_return = x)
 DEBT <- DEBT |> rename(debt_return = x)
+WAGE <- WAGE |> mutate(wage_growth_percent = (wage - lag(wage)) / lag(wage)) 
+INFLATION <- INFLATION |> mutate(inflation_rate = (CPI - lag(CPI)) / lag(CPI))
 
 # Merge all dataframes into one combined dataset
 combined_data <- reduce(list(WAGE, INFLATION, SPY, ACWI, BOND, DEBT), 
@@ -167,9 +175,12 @@ combined_data <- reduce(list(WAGE, INFLATION, SPY, ACWI, BOND, DEBT),
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
+
+
 long_run_averages <- combined_data |>
   summarise(
     wage_avg = mean(wage, na.rm = TRUE),
+    wage_growth_avg = mean(wage_growth_percent, na.rm = TRUE),
     inflation_avg = mean(inflation_rate, na.rm = TRUE),
     equity_return_SPY_avg = mean(equity_return_SPY, na.rm = TRUE),
     equity_return_ACWI_avg = mean(equity_return_ACWI, na.rm = TRUE),
@@ -181,6 +192,7 @@ averages_flip <- long_run_averages |>
   pivot_longer(cols = everything(), names_to = "Metric", values_to = "Average") |>
   mutate(Metric = recode(Metric,
                          wage_avg = "Average Wage",
+                         wage_growth_avg = "Average Wage Growth (%)",
                          inflation_avg = "Average Inflation Rate (%)",
                          equity_return_SPY_avg = "Average SPY Equity Return (%)",
                          equity_return_ACWI_avg = "Average ACWI Equity Return (%)",
@@ -200,7 +212,7 @@ averages_flip|>
 #| code-title: View Code
 long_run_data <- combined_data|>
   select(
-    wage_growth, inflation_rate, equity_return_SPY, equity_return_ACWI, bond_return, debt_return
+    wage, inflation_rate, equity_return_SPY, equity_return_ACWI, bond_return, debt_return
   ) |>
   pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value")
 
@@ -244,7 +256,8 @@ ggplot(correlation_heatmap, aes(x = variable1, y = variable2, fill = correlation
 - employer takes the market risk
 - If the market underperforms expectations, CUNY has to “pony up” and make up the gap
 - If the market overperforms expectations, CUNY pockets the excess balance.
-
+- Your pension will not be based on the contributions you paid into the system. [^1]
+[^1] [New York State & Local Retirement System Member Contribution](https://www.osc.ny.gov/retirement/members/member-contributions#:~:text=Your%20pension%20will%20not%20be,of%20the%20Common%20Retirement%20Fund.)
 ## Teachers Retirement System (TRS)
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -262,19 +275,17 @@ salary_data <- wage_20yrs |>
   mutate(
     salary = initial_salary * cumprod(1 + lag(wage_growth_percent, default = 0))
   )
-
 ```
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
-# TRS Contribution Calculation
-trs_contribution_rate <- function(salary) {
-  if (salary <= 45000) return(0.03)
-  else if (salary <= 55000) return(0.035)
-  else if (salary <= 75000) return(0.045)
-  else if (salary <= 100000) return(0.0575)
-  else return(0.06)  # For salaries above 100,000
+# Inflation adjustment function
+inflation_adjustment <- function(cpi) {
+  adjustment <- ceiling(cpi * 0.5) / 100
+  if (adjustment < 0.01) return(0.01)  
+  if (adjustment > 0.03) return(0.03) 
+  return(adjustment)
 }
 
 # 2024 TRS Contribution Calculation
@@ -287,8 +298,8 @@ retirement_benefit <- function(n, fas) {
   else if (n == 20) return(0.0175 * fas * n)
   else return((0.35 + 0.02 * (n - 20)) * fas)
 }
-TRS_benefit = retirement_benefit(years_of_service, final_average_salary)
 
+trs_benefit = retirement_benefit(years_of_service, final_average_salary)
 ```
 
 ## Optional Retirement Plan (ORP)
@@ -373,32 +384,46 @@ employer_contrib_rate <- function(years) {
 ```
 
 ### Portfolio Value
+Use averages
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
+long_run_avg_2004 <- combined_data |> 
+  filter(date >= start_date) |>
+  summarise(
+    wage_avg = mean(wage, na.rm = TRUE),
+    wage_growth_avg = mean(wage_growth_percent, na.rm = TRUE),
+    inflation_avg = mean(inflation_rate, na.rm = TRUE),
+    equity_return_SPY_avg = mean(equity_return_SPY, na.rm = TRUE),
+    equity_return_ACWI_avg = mean(equity_return_ACWI, na.rm = TRUE),
+    bond_return_avg = mean(bond_return, na.rm = TRUE),
+    debt_return_avg = mean(debt_return, na.rm = TRUE)
+  )
+
 calculate_portfolio_value <- function(start_salary, years_worked, retirement_age, current_age) {
   total_contrib <- 0
   portfolio_value <- 0
   current_salary <- start_salary
+  year <- 1
   
   # Simulate annual contributions and growth until retirement
   for (age in current_age:(retirement_age - 1)) {
     employee_contrib <- employee_contrib_rate(current_salary)
-    employer_contrib <- employee_contrib * employer_contrib_rate(min(age, years_worked))
-        total_contrib <- employee_contrib + employer_contrib
+    employer_contrib <- current_salary*employer_contrib_rate(year)
+    year <- year + 1
+    total_contrib <- employee_contrib + employer_contrib
     portfolio_value <- portfolio_value + total_contrib
-    
     # Asset allocation based on age
     us_equities_pct <- us_equities_rate(age)
     international_pct <- international_equities_rate(age)
     bonds_pct <- bonds_rate(age)
     short_term_pct <- short_term_debt_rate(age)
     
-    # Assume average annual returns for each asset class (simplified)
-    us_equities_return <- 0.07
-    international_return <- 0.06
-    bonds_return <- 0.03
-    short_term_return <- 0.02
+    # convert to average annual returns
+    us_equities_return <- (1 + long_run_avg_2004$equity_return_SPY_avg) ^ 12 - 1
+    international_return <- (1 + long_run_avg_2004$equity_return_ACWI_avg) ^ 12 - 1
+    bonds_return <- (1 + long_run_avg_2004$bond_return_avg/100) ^ 12 - 1
+    short_term_return <- (1 + long_run_avg_2004$debt_return_avg/100) ^ 12 - 1
     
     # Calculate portfolio growth based on allocation
     portfolio_value <- portfolio_value * (1 + us_equities_pct * us_equities_return +
@@ -406,35 +431,58 @@ calculate_portfolio_value <- function(start_salary, years_worked, retirement_age
                                             bonds_pct * bonds_return +
                                             short_term_pct * short_term_return)
     
-    # Simulate salary increase (e.g., 3% annually)
-    current_salary <- current_salary * 1.03
+    # Simulate salary increase
+    current_salary <- current_salary * (1 + long_run_averages$wage_growth_avg)
   }
   
   return(portfolio_value)
 }
 
-```
+start_age = 40
+retirement_age = 65
+portfolio_value_at_retirement <- calculate_portfolio_value(initial_salary, years_of_service, retirement_age, start_age)
 
+```
+## TRS First Month Retirement Benefit
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
-# TRS: Calculate the First Month Retirement Benefit**
 # Monthly TRS Benefit (assuming TRS benefit is paid monthly)
 trs_monthly_benefit <- trs_benefit / 12
+```
 
+## ORP First Month Retirement Benefit
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
 # 2. **ORP: Calculate Portfolio Value at Retirement**
 # the first month’s payout is typically a 4% withdrawal rate
 # Sustainable withdrawal rate (e.g., 4% annually, which is 0.33% monthly)
-orp_monthly_withdrawal <- orp_portfolio_value * 0.04 / 12
+orp_monthly_withdrawal <- portfolio_value_at_retirement * 0.04 / 12
 
-# 3. **Comparison of TRS and ORP for First Month of Retirement**
-comparison_table <- tibble(
+comparison_table_gt <- tibble(
   Plan = c("TRS", "ORP"),
   First_Month_Retirement_Value = c(trs_monthly_benefit, orp_monthly_withdrawal)
-)
-
-# Print the comparison table
-comparison_table
+) |>
+  gt() |>
+  tab_header(
+    title = "Comparison of TRS and ORP for First Month of Retirement"
+  ) |>
+  cols_label(
+    Plan = "Retirement Plan",
+    First_Month_Retirement_Value = "First Month Retirement Value"
+  ) |>
+  fmt_currency(
+    columns = vars(First_Month_Retirement_Value),
+    currency = "USD",
+    use_seps = TRUE,
+    decimals = 0
+  ) |>
+  tab_spanner(
+    label = "Retirement Plan",
+    columns = vars(First_Month_Retirement_Value)
+  )
+comparison_table_gt
 ```
 # Long Term Average Analysis
 ## TRS Withdrawals After Retirement
@@ -456,22 +504,22 @@ inflation_adjustment <- function(CPI) {
 
 # Simulating pension benefit with inflation adjustments
 simulate_trs_with_inflation <- function(initial_pension, inflation_data, retirement_date, end_date) {
-  pension_stream <- numeric(total_years * 12)  # Total number of months (total_years * 12)
-  pension_stream[1] <- initial_pension  # Set the initial pension value for the first month
+  retirement_benefit <- numeric(total_years * 12) 
+  retirement_benefit[1] <- initial_pension 
   current_pension <- initial_pension
-  for (current_month in 2:length(pension_stream)) {
-    current_date <- seq(retirement_date, length.out = length(pension_stream), by = "month")[current_month]
+  for (current_month in 2:length(retirement_benefit)) {
+    current_date <- seq(retirement_date, length.out = length(retirement_benefit), by = "month")[current_month]
     # The inflation adjustment is effective each September
     if (format(current_date, "%m") == "09") {
       inflation_data_recent <- inflation_data[inflation_data$date < current_date,]
       last_12_months_inflation <- tail(inflation_data_recent$inflation_rate, 12)
-      CPI <- mean(last_12_months_inflation)  # Use the average inflation of the last 12 months
-      adjustment <- inflation_adjustment(CPI)
+      avg_inflation <- mean(last_12_months_inflation)
+      adjustment <- inflation_adjustment(avg_inflation)
       current_pension <- current_pension * (1 + adjustment)
     }
-    pension_stream[current_month] <- current_pension
+    retirement_benefit[current_month] <- current_pension
   }
-  return(pension_stream)
+  return(retirement_benefit)
 }
 
 # using past infation rates due to data availability
@@ -524,16 +572,204 @@ cat("Total withdrawals over retirement: $", round(total_withdrawals, 2), "\n")
   
 ```
 
+# Monte Carlo Analysis
+## TRS Simulation
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
+set.seed(123)  # For reproducibility
+n_simulations <- 200
 
+# TRS Simulation
+simulate_trs_monte_carlo <- function(n_simulations, initial_salary, years_worked, wage_growth_data, inflation_data) {
+  wage_growth_data <- na.omit(wage_growth_data)
+  inflation_data <- na.omit(inflation_data)
+  
+  results <- numeric(n_simulations) 
+  
+  for (sim in 1:n_simulations) {
+    salary <- initial_salary
+    salaries <- numeric(years_worked)
+    retirement_benefit <- numeric(years_worked * 12) 
+    # Salary growth
+    for (i in 1:years_worked) {
+      growth_rate <- sample(wage_growth_data$wage_growth_percent, 1) 
+      inflation_rate <- sample(inflation_data$inflation_rate, 1) 
+      salary <- salary * (1 + growth_rate + inflation_rate)
+      salaries[i] <- salary 
+    }
+    # Calculate Final Average Salary (FAS) based on the last 3 years of salary
+    final_average_salary <- mean(tail(salaries, 3))
+    
+    trs_benefit <- retirement_benefit(years_worked, final_average_salary)
+
+    current_pension <- trs_benefit
+    retirement_benefit_monthly <- trs_benefit / 12 
+    retirement_benefit[1] <- trs_benefit
+    for (current_month in 2:(years_worked * 12)) {
+      current_year <- ceiling(current_month / 12)
+      current_month_in_year <- current_month %% 12
+      if (current_month_in_year == 0) current_month_in_year <- 12   
+      if (current_month_in_year == 9) {  # The inflation adjustment is effective each September
+        sampled_inflation <- sample(inflation_data$inflation_rate, 12, replace = TRUE)
+        mean_inflation <- mean(sampled_inflation)
+        adjustment <- inflation_adjustment(mean_inflation)
+        current_pension <- current_pension * (1 + adjustment)
+      }
+      retirement_benefit[current_month] <- current_pension
+    }
+    results[sim] <- sum(retirement_benefit)
+  }
+
+  return(results)
+}
+starting_salary <- 50000 
+years_worked <- 20
+n_simulations <- 200
+
+# Run the simulation
+trs_results <- simulate_trs_monte_carlo(n_simulations, starting_salary, years_worked, WAGE, INFLATION)
+
+mean_trs_benefit <- mean(trs_results)
+median_trs_benefit <- median(trs_results)
+quantiles_trs_benefit <- quantile(trs_results, c(0.25, 0.75))
+
+# Print the results
+cat("Mean TRS Benefit: $", mean_trs_benefit, "\n")
+cat("Median TRS Benefit: $", median_trs_benefit, "\n")
+cat("25th and 75th Percentiles of TRS Benefit: $", quantiles_trs_benefit, "\n")
 ```
 
-# Monte Carlo Analysis
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+set.seed(123)  # For reproducibility
+n_simulations <- 200
+
+# TRS Simulation
+simulate_trs_monte_carlo <- function(n_simulations, starting_salary, years_worked, wage_growth_data, inflation_data) {
+  wage_growth_data <- na.omit(wage_growth_data)
+  inflation_data <- na.omit(inflation_data)
+
+  results <- numeric(n_simulations)
+  
+  for (sim in 1:n_simulations) {
+    salary <- starting_salary
+    salaries <- numeric(years_worked)
+    
+    for (i in 1:years_worked) {
+      # Resample wage growth and inflation data for each year
+      growth_rate <- sample(wage_growth_data$wage_growth_percent, 1)  
+      inflation_rate <- sample(inflation_data$inflation_rate, 1) 
+      salary <- salary * (1 + growth_rate + inflation_rate)
+      salaries[i] <- salary
+    }
+         cat("Simulation:", sim, "Year:", i, "\n")
+      cat("Wage Growth Rate: ", growth_rate, "\n")  # Print in percentage
+      cat("Inflation Rate: ", inflation_rate, "\n")  # Print in percentage
+      
+    # Calculate final average salary (last 3 years)
+    final_average_salary <- mean(tail(salaries, 3))
+    
+    # Calculate pension based on years worked
+    pension <- retirement_benefit(years_worked, final_average_salary)
+    monthly_pension <- pension / 12
+    results[sim] <- pension
+    # results[sim] <- monthly_pension
+  }
+  return(results)
+}
+starting_salary <- 40000 
+years_worked <- 20
+n_simulations <- 200
+
+# Run the simulation
+trs_results <- simulate_trs_monte_carlo(n_simulations, starting_salary, years_worked, WAGE, INFLATION)
+
+mean_trs_benefit <- mean(trs_results)
+median_trs_benefit <- median(trs_results)
+quantiles_trs_benefit <- quantile(trs_results, c(0.25, 0.75))
+
+# Print the results
+cat("Mean TRS Benefit: $", mean_trs_benefit, "\n")
+cat("Median TRS Benefit: $", median_trs_benefit, "\n")
+cat("25th and 75th Percentiles of TRS Benefit: $", quantiles_trs_benefit, "\n")
+```
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
+# ORP Simulation
+simulate_orp <- function(n_simulations, starting_salary, years_worked, 
+                            wage_growth_data, inflation_data, equity_return_SPY_data, equity_return_ACWI_data,
+                            bond_return_data, debt_return_data) {
+  wage_growth_data <- na.omit(wage_growth_data)
+  inflation_data <- na.omit(inflation_data)
+  equity_return_SPY_data <- na.omit(equity_return_SPY_data)
+  equity_return_ACWI_data <- na.omit(equity_return_ACWI_data)
+  bond_return_data <- na.omit(bond_return_data)
+  debt_return_data <- na.omit(debt_return_data)
+  
+  results <- numeric(n_simulations)
+
+  for (i in 1:n_simulations) {
+    portfolio_value <- 0
+    current_salary <- starting_salary
+    total_contrib <- 0
+    year <- 1
+    starting_age <- 40
+    
+    for (age in starting_age:(retirement_age - 1)) {
+      # Resample returns for this year (with replacement)
+      wage_growth <- sample(wage_growth_data$wage_growth_percent, 1)
+      inflation_rate <- sample(inflation_data$inflation_rate, 1)
+      equity_return_SPY <- sample(equity_return_SPY_data$equity_return_SPY, 1)
+      equity_return_ACWI <- sample(equity_return_ACWI_data$equity_return_ACWI, 1, replace = TRUE)
+      bond_return <- sample(bond_return_data$bond_return, 1, replace = TRUE)
+      debt_return <- sample(debt_return_data$debt_return, 1, replace = TRUE)
+      
+      # Calculate the contribution for this year
+      employee_contrib <- employee_contrib_rate(current_salary)
+      employer_contrib <- current_salary * employer_contrib_rate(year)
+      total_contrib <- employee_contrib + employer_contrib
+      portfolio_value <- portfolio_value + total_contrib
+     
+      bonds_return <- (bond_return/100)
+      short_term_return <- (debt_return/100)
+      
+      us_equities_pct <- us_equities_rate(age)
+      international_pct <- international_equities_rate(age)
+      bonds_pct <- bonds_rate(age)
+      short_term_pct <- short_term_debt_rate(age)
+      portfolio_value <- portfolio_value * (1 + us_equities_pct * equity_return_SPY +
+                                            international_pct * equity_return_ACWI +
+                                            bonds_pct * bonds_return +
+                                            short_term_pct * short_term_return)
+      current_salary <- current_salary * (1 + wage_growth)
+      year <- year + 1
+    }
+    results[i] <- portfolio_value
+  }
+  return(results)
+}
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+starting_salary <- 40000
+years_worked <- 20
+
+# Run the Monte Carlo simulation
+orp_results <- simulate_orp(n_simulations, starting_salary, years_worked, 
+                           WAGE, INFLATION, SPY, ACWI, BOND, DEBT)
+# Calculate the probability that an ORP employee exhausts their savings before death
+
+# Probability that ORP > TRS
+orp_vs_trs_prob <- mean(results$orp_results > results$trs_results)
+
+# Report the results
+cat("Probability ORP exhausts savings:", round(orp_exhaustion_prob, 4), "\n")
+cat("Probability ORP has higher income than TRS:", round(orp_vs_trs_prob, 4), "\n")
 
 ```
