@@ -230,14 +230,6 @@ ggplot(long_run_data, aes(x = "", y = Value)) +
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
-cor_matrix <- cor(combined_data[, -1], use = "complete.obs")
-library(corrplot)
-corrplot(cor_matrix, method = "circle", type = "upper", order = "hclust")
-```
-
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: View Code
 correlation_heatmap <- cor_matrix|>
   as_tibble(rownames = "variable1") |>
   pivot_longer(cols = -variable1, names_to = "variable2", values_to = "correlation")
@@ -259,12 +251,14 @@ ggplot(correlation_heatmap, aes(x = variable1, y = variable2, fill = correlation
 - If the market overperforms expectations, CUNY pockets the excess balance.
 - Your pension will not be based on the contributions you paid into the system. [^1]
 [^1] [New York State & Local Retirement System Member Contribution](https://www.osc.ny.gov/retirement/members/member-contributions#:~:text=Your%20pension%20will%20not%20be,of%20the%20Common%20Retirement%20Fund.)
+
 ## Teachers Retirement System (TRS)
+
+Calculate Wage Growth
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
 
-# Calculate Wage Growth
 WAGE <- WAGE |> mutate(wage_growth_percent = (wage - lag(wage)) / lag(wage)) 
 initial_salary <- 50000  # Hypothetical starting salary
 start_date <- "2004-10-01"
@@ -278,6 +272,7 @@ salary_data <- wage_20yrs |>
   )
 ```
 
+Inflation Adjustement 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -288,9 +283,12 @@ inflation_adjustment <- function(cpi) {
   if (adjustment > 0.03) return(0.03) 
   return(adjustment)
 }
+```
 
-# 2024 TRS Contribution Calculation
-# last 3 years of salary
+Contribution Based on Last 3 Years of Salary
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
 salary_3yrs <- salary_data |> filter(date >= "2021-10-01")
 years_of_service = 20
 final_average_salary = mean(salary_3yrs$salary)
@@ -304,15 +302,25 @@ trs_benefit = retirement_benefit(years_of_service, final_average_salary)
 print(trs_benefit)
 ```
 
+## TRS First Month Retirement Benefit
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Monthly TRS Benefit (assuming TRS benefit is paid monthly)
+trs_monthly_benefit <- trs_benefit / 12
+print(trs_monthly_benefit)
+```
+
 ## Optional Retirement Plan (ORP)
 **ORP:** closer to a 401k plan, employee and employer make contribution to retirement account that is invested in mutual funds. aka “defined-contribution plan”
 - only contribution is fixed
 - depends on market performance
 
+Contribution Rate
+We will be following the Fidelity Freedom Fund distribution of funds.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
-# follow Fidelity Freedom Fund 
 orp_contribution_rate <- function(salary) {
   if (salary <= 45000) return(0.03)
   else if (salary <= 55000) return(0.035)
@@ -385,8 +393,8 @@ employer_contrib_rate <- function(years) {
 }
 ```
 
-### Portfolio Value
-Use averages
+# Long Run Averages Portfolio Values
+First, I will be using long run averages for the two retirement plans. 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -401,7 +409,13 @@ long_run_avg_2004 <- combined_data |>
     bond_return_avg = mean(bond_return, na.rm = TRUE),
     debt_return_avg = mean(debt_return, na.rm = TRUE)
   )
+```
 
+### ORP First Month Retirement Benefit
+ Calculate for ORP
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
 calculate_portfolio_value <- function(start_salary, years_worked, retirement_age, current_age) {
   total_contrib <- 0
   portfolio_value <- 0
@@ -446,16 +460,7 @@ retirement_age = 65
 portfolio_value_at_retirement <- calculate_portfolio_value(initial_salary, years_of_service, retirement_age, start_age)
 print(portfolio_value_at_retirement)
 ```
-## TRS First Month Retirement Benefit
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: View Code
-# Monthly TRS Benefit (assuming TRS benefit is paid monthly)
-trs_monthly_benefit <- trs_benefit / 12
-print(trs_monthly_benefit)
-```
 
-## ORP First Month Retirement Benefit
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -488,8 +493,9 @@ comparison_table_gt <- tibble(
   )
 comparison_table_gt
 ```
-# Long Term Average Analysis
-## TRS Withdrawals After Retirement
+
+## Retirment
+### TRS Withdrawals After Retirement
 The inflation adjustement is effective each September and the CPI used is the aggregate monthly CPI of the previous 12 months; so the September 2024 adjustment depends on the CPI from September 2023 to August 2024.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -540,7 +546,7 @@ cat("Total amount received over 20 years: $", round(total_received, 2), "\n")
 
 ```
 
-## ORP Withdrawals After Retirement
+### ORP Withdrawals After Retirement
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
