@@ -4,6 +4,64 @@ author: "Cindy Li"
 ---
 
 # Introduction
+As a CUNY employee, you are presented with two retirement plan options: Teachers' Retirement System (TRS) and Optional Retirement Plan (ORP). Both plans have distinct characteristics, and the best option depends on various factors, including your personal financial goals, investment preferences, and risk tolerance. Below, I will walk you through the key considerations for each plan and how they might work for you.
+
+## 1. **Teachers' Retirement System (TRS) Overview**
+
+The TRS is a **defined-benefit plan**, meaning your retirement benefit is based on a formula related to your salary and years of service, rather than the market performance of your investments. The key features are:
+
+- **Fixed Benefit**: Your pension is a fixed amount that you receive monthly after retirement, based on your years of service and the final average salary (FAS).
+- **Employer Takes the Risk**: The CUNY system, as your employer, is responsible for ensuring that your pension is paid out, regardless of how the financial markets perform.
+- **Inflation Adjustments**: Your pension is typically adjusted for inflation every year, ensuring your purchasing power remains somewhat protected over time.
+
+## 2. **Optional Retirement Plan (ORP) Overview**
+
+The ORP is a **defined-contribution plan**, similar to a 401(k). In this plan, both you and CUNY make contributions to your individual retirement account, and the amount you have at retirement depends on several factors:
+
+- **Market Risk**: Your retirement benefit is subject to the market performance of the investments you choose, so the value of your account can fluctuate over time.
+- **Flexible Contributions**: You and CUNY will contribute a percentage of your salary into the plan. Typically, the employer contributes 8-10% depending on your years of service, while you contribute a portion as well.
+- **Investment Choices**: The ORP gives you more control over your investment choices, often offering mutual funds with varying levels of risk (equities, bonds, etc.).
+
+Your ORP retirement benefit depends on:
+- **Employee and Employer Contributions**: These contributions are made throughout your career, generally a fixed percentage of your salary.
+- **Investment Returns**: The money is invested in mutual funds, and your retirement account grows based on the returns of those investments.
+Your return will depend on both the contributions and the market returns over your career. Given that the stock market can be volatile, your final portfolio value may fluctuate.
+
+## **Comparison: TRS vs. ORP**
+Right off the bat, based on the information above, we can compare the two plans on a theoretical level.
+### Predictability & Stability
+- **TRS**: Offers a **fixed, predictable monthly income** that is guaranteed by CUNY. You don’t have to worry about market volatility or having to manage your own investments. This can be comforting if you prefer stability in retirement.
+- **ORP**: The benefit is not guaranteed. It depends on **market performance**, meaning that if markets perform well, your retirement savings will grow, but if they perform poorly, you may face lower-than-expected retirement income.
+
+### Inflation Protection
+- **TRS**: Your pension will likely receive **annual inflation adjustments**, though they are capped. This means your income will keep up with inflation to some degree.
+- **ORP**: No built-in inflation protection. Your **portfolio must grow at a rate that outpaces inflation**, which may be challenging in a low-interest-rate environment.
+
+### Risk Tolerance
+- **TRS**: Low risk. The risk of market performance is carried by CUNY, not you.
+- **ORP**: Higher risk. Since it is based on market performance, your retirement income will be more volatile and dependent on your asset allocation and the financial markets.
+
+### Control and Flexibility
+- **TRS**: You have **no control** over your pension plan. Your monthly benefit is determined by a set formula.
+- **ORP**: You have **full control** over how your money is invested, which can lead to higher returns if you make the right choices. However, this also means you need to be **actively involved** in managing your retirement account.
+
+### Retirement Income
+- **TRS**: Provides a **steady, predictable income** for life, which can be helpful for budgeting in retirement.
+- **ORP**: Your retirement income is **variable** and can increase or decrease depending on the performance of your investments.
+
+## **Decision Factors for You**
+- How long do you plan to stay at CUNY?
+- Are you comfortable with market fluctuations?
+- Do you value control over your investments? 
+- What is your current and expected future salary?
+### **When Should You Consider TRS?**
+- If you want **certainty** in retirement and prefer not to worry about market fluctuations.
+- If you have a **long career with CUNY**, since TRS benefits become more favorable the longer you work (especially after 20+ years of service).
+- If you want **steady, inflation-adjusted income** in retirement.
+### **When Should You Consider ORP?**
+- If you have a **shorter tenure at CUNY** or if you're considering leaving CUNY at some point and want to **take your retirement savings with you**.
+- If you're comfortable with **market risk** and want **more control over your investments**.
+- If you believe you can achieve higher returns through investment growth compared to a fixed pension benefit.
 
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -243,7 +301,25 @@ ggplot(correlation_heatmap, aes(x = variable1, y = variable2, fill = correlation
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-# Comparison of TRS and ORP
+# Long Run Averages Portfolio Value Calculations
+First, I will be using long run averages for the two retirement plans. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+long_run_avg_2004 <- combined_data |> 
+  filter(date >= start_date) |>
+  summarise(
+    wage_avg = mean(wage, na.rm = TRUE),
+    wage_growth_avg = mean(wage_growth_percent, na.rm = TRUE),
+    inflation_avg = mean(inflation_rate, na.rm = TRUE),
+    equity_return_SPY_avg = mean(equity_return_SPY, na.rm = TRUE),
+    equity_return_ACWI_avg = mean(equity_return_ACWI, na.rm = TRUE),
+    bond_return_avg = mean(bond_return, na.rm = TRUE),
+    debt_return_avg = mean(debt_return, na.rm = TRUE)
+  )
+```
+
+## Calculation of TRS
 **TRS:** traditional pension plan: after retirement, the employer pays employees a fraction of their salary until death. aka “defined-benefit plan”
 - benefit is fixed
 - employer takes the market risk
@@ -252,9 +328,7 @@ ggplot(correlation_heatmap, aes(x = variable1, y = variable2, fill = correlation
 - Your pension will not be based on the contributions you paid into the system. [^1]
 [^1] [New York State & Local Retirement System Member Contribution](https://www.osc.ny.gov/retirement/members/member-contributions#:~:text=Your%20pension%20will%20not%20be,of%20the%20Common%20Retirement%20Fund.)
 
-## Teachers Retirement System (TRS)
-
-Calculate Wage Growth
+**Calculate Wage Growth**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -272,20 +346,8 @@ salary_data <- wage_20yrs |>
   )
 ```
 
-Inflation Adjustement 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: View Code
-# Inflation adjustment function
-inflation_adjustment <- function(cpi) {
-  adjustment <- ceiling(cpi * 0.5) / 100
-  if (adjustment < 0.01) return(0.01)  
-  if (adjustment > 0.03) return(0.03) 
-  return(adjustment)
-}
-```
-
-Contribution Based on Last 3 Years of Salary
+**Contribution Based on Last 3 Years of Salary**
+The TRS pension benefit is based on your final average salary (FAS), which is determined by the average salary over the last three years of employment.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -302,7 +364,8 @@ trs_benefit = retirement_benefit(years_of_service, final_average_salary)
 print(trs_benefit)
 ```
 
-## TRS First Month Retirement Benefit
+**TRS First Month Retirement Benefit**
+The first month retirement benefit for TRS is calculated by dividing the total annual pension by 12 months.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -311,13 +374,13 @@ trs_monthly_benefit <- trs_benefit / 12
 print(trs_monthly_benefit)
 ```
 
-## Optional Retirement Plan (ORP)
+## Calculation of ORP
 **ORP:** closer to a 401k plan, employee and employer make contribution to retirement account that is invested in mutual funds. aka “defined-contribution plan”
 - only contribution is fixed
 - depends on market performance
 
-Contribution Rate
-We will be following the Fidelity Freedom Fund distribution of funds.
+**Contribution Rate**
+The employee's contribution is based on their salary, and the employer contributes a fixed percentage based on years of service. We will be following the Fidelity Freedom Fund distribution of funds for your contributions. The allocation of funds between equities (both domestic and international), bonds, and short-term debt changes as you age.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -393,26 +456,9 @@ employer_contrib_rate <- function(years) {
 }
 ```
 
-# Long Run Averages Portfolio Values
-First, I will be using long run averages for the two retirement plans. 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: View Code
-long_run_avg_2004 <- combined_data |> 
-  filter(date >= start_date) |>
-  summarise(
-    wage_avg = mean(wage, na.rm = TRUE),
-    wage_growth_avg = mean(wage_growth_percent, na.rm = TRUE),
-    inflation_avg = mean(inflation_rate, na.rm = TRUE),
-    equity_return_SPY_avg = mean(equity_return_SPY, na.rm = TRUE),
-    equity_return_ACWI_avg = mean(equity_return_ACWI, na.rm = TRUE),
-    bond_return_avg = mean(bond_return, na.rm = TRUE),
-    debt_return_avg = mean(debt_return, na.rm = TRUE)
-  )
-```
 
-### ORP First Month Retirement Benefit
- Calculate for ORP
+**Calculate for ORP**
+This function simulates the growth of your ORP account based on contributions, salary increases, and asset allocation.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -461,6 +507,12 @@ portfolio_value_at_retirement <- calculate_portfolio_value(initial_salary, years
 print(portfolio_value_at_retirement)
 ```
 
+## Comparison of TRS and ORP First Month Retirement Benefits
+Here we compare the first month's retirement benefit from both plans.
+**TRS First Month Retirement Benefit**
+The first month retirement benefit for TRS is calculated by dividing the total annual pension by 12 months.
+**ORP First Month Retirement Benefit**
+After retirement, the ORP monthly benefit can be calculated based on a 4% withdrawal rate, which is typical for sustainable withdrawals.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -494,9 +546,25 @@ comparison_table_gt <- tibble(
 comparison_table_gt
 ```
 
-## Retirment
-### TRS Withdrawals After Retirement
-The inflation adjustement is effective each September and the CPI used is the aggregate monthly CPI of the previous 12 months; so the September 2024 adjustment depends on the CPI from September 2023 to August 2024.
+# Long Run Averages Retirement Calculations
+## TRS Withdrawals After Retirement
+The TRS pension offers a steady, inflation-adjusted income during retirement. This income increases each year based on inflation, but the increase is capped at 3% annually. The adjustment is effective every September, using the Consumer Price Index (CPI) of the previous 12 months to calculate the inflation rate.
+
+**Inflation Adjustement**
+To simulate the TRS benefit after retirement, we adjust the pension payments based on inflation. The adjustment is capped at 3% annually. The inflation adjustement is effective each September and the CPI used is the aggregate monthly CPI of the previous 12 months.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Inflation adjustment function
+inflation_adjustment <- function(cpi) {
+  adjustment <- ceiling(cpi * 0.5) / 100
+  if (adjustment < 0.01) return(0.01)  
+  if (adjustment > 0.03) return(0.03) 
+  return(adjustment)
+}
+```
+
+The following code simulates the pension payments over a 20-year retirement period. The pension increases annually based on the average inflation rate of the previous 12 months, adjusted according to the rules described above. The result provides insight into how TRS can help preserve purchasing power over the long term.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -546,7 +614,10 @@ cat("Total amount received over 20 years: $", round(total_received, 2), "\n")
 
 ```
 
-### ORP Withdrawals After Retirement
+## ORP Withdrawals After Retirement
+With the ORP, the employee builds a retirement portfolio over their working years and begins drawing down funds after retirement. The amount withdrawn each year is typically a percentage of the portfolio value, with a common recommendation being 4% annually.
+In addition to withdrawals, the remaining portfolio continues to grow during retirement at an assumed annual return of 3%. This growth helps maintain the portfolio balance and ensures that funds last throughout retirement. 
+The following code simulates the withdrawals from the ORP portfolio over a 20-year retirement period. The initial portfolio value is based on the employee's salary, years of service, and contributions. The code assumes an annual withdrawal of 4% and a 3% annual growth rate.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -579,7 +650,12 @@ cat("Total withdrawals over retirement: $", round(total_withdrawals, 2), "\n")
 ```
 
 # Monte Carlo Analysis
+In this section, we will compare the TRS and ORP retirement plans using Monte Carlo simulations. Both plans are simulated based on historical data.
 ## TRS Simulation
+Key Assumptions:
+- Salary growth: Simulated using historical wage growth data.
+- Inflation: Applied annually to adjust pension payments.
+- Inflation-adjusted benefits: We simulate TRS benefits with a 3% maximum annual inflation increase.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -647,6 +723,11 @@ cat("25th and 75th Percentiles of TRS Benefit: $", quantiles_trs_benefit, "\n")
 ```
 
 ## ORP Contribution Simulation
+Key Assumptions:
+- Employee and Employer Contributions: Contributions are based on salary and a specified contribution rate.
+- Asset Allocation: The portfolio grows based on a mix of equities, bonds, and other assets. This mix changes based on the employee's age.
+- Investment Returns: Simulated using historical returns from a variety of asset classes.
+
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
