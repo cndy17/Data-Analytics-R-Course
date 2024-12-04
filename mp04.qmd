@@ -6,28 +6,20 @@ author: "Cindy Li"
 # Introduction
 As a CUNY employee, you are presented with two retirement plan options: Teachers' Retirement System (TRS) and Optional Retirement Plan (ORP). Both plans have distinct characteristics, and the best option depends on various factors, including your personal financial goals, investment preferences, and risk tolerance. Below, I will walk you through the key considerations for each plan and how they might work for you.
 
+# **Comparison: TRS vs. ORP**
 ## 1. **Teachers' Retirement System (TRS) Overview**
-
 The TRS is a **defined-benefit plan**, meaning your retirement benefit is based on a formula related to your salary and years of service, rather than the market performance of your investments. The key features are:
-
-- **Fixed Benefit**: Your pension is a fixed amount that you receive monthly after retirement, based on your years of service and the final average salary (FAS).
-- **Employer Takes the Risk**: The CUNY system, as your employer, is responsible for ensuring that your pension is paid out, regardless of how the financial markets perform.
-- **Inflation Adjustments**: Your pension is typically adjusted for inflation every year, ensuring your purchasing power remains somewhat protected over time.
+-**Fixed Benefit**: Your pension is a fixed amount that you receive monthly after retirement, based on your years of service and the final average salary (FAS).
+-**Employer Takes the Risk**: The CUNY system, as your employer, is responsible for ensuring that your pension is paid out, regardless of how the financial markets perform.
+-**Inflation Adjustments**: Your pension is typically adjusted for inflation every year, ensuring your purchasing power remains somewhat protected over time.
 
 ## 2. **Optional Retirement Plan (ORP) Overview**
-
-The ORP is a **defined-contribution plan**, similar to a 401(k). In this plan, both you and CUNY make contributions to your individual retirement account, and the amount you have at retirement depends on several factors:
-
-- **Market Risk**: Your retirement benefit is subject to the market performance of the investments you choose, so the value of your account can fluctuate over time.
-- **Flexible Contributions**: You and CUNY will contribute a percentage of your salary into the plan. Typically, the employer contributes 8-10% depending on your years of service, while you contribute a portion as well.
-- **Investment Choices**: The ORP gives you more control over your investment choices, often offering mutual funds with varying levels of risk (equities, bonds, etc.).
-
+The ORP is a **defined-contribution plan**, similar to a 401(k). In this plan, both you and CUNY make contributions to your individual retirement account, and the amount you have at retirement depends on several factors.
 Your ORP retirement benefit depends on:
-- **Employee and Employer Contributions**: These contributions are made throughout your career, generally a fixed percentage of your salary.
-- **Investment Returns**: The money is invested in mutual funds, and your retirement account grows based on the returns of those investments.
+-**Employee and Employer Contributions**: These contributions are made throughout your career, generally a fixed percentage of your salary.
+-**Investment Returns**: The money is invested in mutual funds, and your retirement account grows based on the returns of those investments.
 Your return will depend on both the contributions and the market returns over your career. Given that the stock market can be volatile, your final portfolio value may fluctuate.
 
-## **Comparison: TRS vs. ORP**
 Right off the bat, based on the information above, we can compare the two plans on a theoretical level.
 ### Predictability & Stability
 - **TRS**: Offers a **fixed, predictable monthly income** that is guaranteed by CUNY. You don’t have to worry about market volatility or having to manage your own investments. This can be comforting if you prefer stability in retirement.
@@ -48,21 +40,6 @@ Right off the bat, based on the information above, we can compare the two plans 
 ### Retirement Income
 - **TRS**: Provides a **steady, predictable income** for life, which can be helpful for budgeting in retirement.
 - **ORP**: Your retirement income is **variable** and can increase or decrease depending on the performance of your investments.
-
-## **Decision Factors for You**
-- How long do you plan to stay at CUNY?
-- Are you comfortable with market fluctuations?
-- Do you value control over your investments? 
-- What is your current and expected future salary?
-### **When Should You Consider TRS?**
-- If you want **certainty** in retirement and prefer not to worry about market fluctuations.
-- If you have a **long career with CUNY**, since TRS benefits become more favorable the longer you work (especially after 20+ years of service).
-- If you want **steady, inflation-adjusted income** in retirement.
-### **When Should You Consider ORP?**
-- If you have a **shorter tenure at CUNY** or if you're considering leaving CUNY at some point and want to **take your retirement savings with you**.
-- If you're comfortable with **market risk** and want **more control over your investments**.
-- If you believe you can achieve higher returns through investment growth compared to a fixed pension benefit.
-
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -94,7 +71,7 @@ if (!require("DT")) install.packages("DT")
 if (!require("ggplot2")) install.packages("ggplot2")
 if (!require("gt")) install.packages("gt")
 if (!require("plotly")) install.packages("plotly")
-if (!require("purr")) install.packages("purr")
+if (!require("purrr")) install.packages("purrr")
 if (!require("httr2")) install.packages("httr2")
 
 library(readr)
@@ -246,8 +223,8 @@ combined_data <- reduce(list(WAGE, INFLATION, SPY, ACWI, BOND, DEBT),
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
+#| layout-ncol: 2
 
-par(mfrow = c(2, 3))
 ggplot(WAGE, aes(x = date, y = wage_growth_percent)) +
   geom_line(color = "lightblue") +
   labs(title = "Wage Growth Over Time", x = "Date", y = "Wage Growth (%)") +
@@ -359,6 +336,9 @@ By looking at the correlation heatmap, we can see how the returns of stocks (bot
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
+
+cor_matrix <- cor(combined_data[, -1], use = "complete.obs")
+
 correlation_heatmap <- cor_matrix|>
   as_tibble(rownames = "variable1") |>
   pivot_longer(cols = -variable1, names_to = "variable2", values_to = "correlation")
@@ -373,10 +353,13 @@ ggplot(correlation_heatmap, aes(x = variable1, y = variable2, fill = correlation
 ```
 
 # Long Run Averages Portfolio Value Calculations
-First, I will be using long run averages for the two retirement plans. 
+First, I will be using long run averages calculated above for the two retirement plans. 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
+
+start_date <- "2004-10-01"
+end_date <- "2024-10-01" 
 long_run_avg_2004 <- combined_data |> 
   filter(date >= start_date) |>
   summarise(
@@ -447,7 +430,7 @@ retirement_benefit <- function(n, fas) {
 }
 
 trs_benefit = retirement_benefit(years_of_service, final_average_salary)
-print(trs_benefit)
+cat("TRS Benefit: ", trs_benefit, "\n")
 ```
 
 **TRS First Month Retirement Benefit**
@@ -457,7 +440,7 @@ The first month retirement benefit for TRS is calculated by dividing the total a
 #| code-title: View Code
 # Monthly TRS Benefit (assuming TRS benefit is paid monthly)
 trs_monthly_benefit <- trs_benefit / 12
-print(trs_monthly_benefit)
+cat("First Month Benefit: ", trs_monthly_benefit, "\n")
 ```
 
 ## Calculation of ORP
@@ -541,7 +524,6 @@ employer_contrib_rate <- function(years) {
   else return(0.10)
 }
 ```
-
 
 **Calculate for ORP**
 This function simulates the growth of your ORP account based on contributions, salary increases, and asset allocation.
@@ -632,17 +614,13 @@ comparison_table_gt <- tibble(
   ) |>
   cols_label(
     Plan = "Retirement Plan",
-    First_Month_Retirement_Value = "First Month Retirement Value"
+    First_Month_Retirement_Value = "First_Month_Retirement_Value"
   ) |>
   fmt_currency(
     columns = vars(First_Month_Retirement_Value),
     currency = "USD",
     use_seps = TRUE,
     decimals = 0
-  ) |>
-  tab_spanner(
-    label = "Retirement Plan",
-    columns = vars(First_Month_Retirement_Value)
   )
 comparison_table_gt
 ```
@@ -702,7 +680,7 @@ simulate_trs_with_inflation <- function(initial_pension, inflation_data, retirem
 
 # using past infation rates due to data availability
 # TRS benefit is assumed to be a fixed percentage of the employee's final salary
-monthly_trs_pension <- TRS_benefit / 12 
+monthly_trs_pension <- trs_benefit / 12 
 retirement_date <- as.Date("2020-10-01")
 end_date <- as.Date("2024-10-01")
 total_years <- 20  
@@ -795,11 +773,13 @@ cat("Total withdrawals over retirement: $", round(sum(withdrawals_data$Withdrawa
 
 ```
 
+## Comparison of Withdrawals After Retirement
 Since ORP is withdrawn annually, to compare it with the monthly TRS withdrawals, below, I am displaying ORP withdrawals on a month to month basis. 
+**Monthly Income/Withhdrawal (TRS vs ORP)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
-
+years_retired = 20
 withdrawals_data_monthly <- data.frame(
 Month = seq.Date(from = as.Date("2020-01-01"), 
                    by = "month", 
@@ -821,22 +801,6 @@ ggplot(combined_df, aes(x = Month)) +
   scale_color_manual(values = c("Monthly Withdrawals" = "blue", 
                                 "Monthly Pension Benefit" = "brown"))
 ```
-
-### Historical Outcomes
-**Whether the employee runs out of funds before death and/or has funds to leave to heirs (ORP only)**
-The annual 4% withdrawals are counterbalanced by the assumed annual growth of the portfolio by 3%. 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: View Code
-# Check for remaining balance in ORP at the end of retirement
-final_balance <- tail(withdrawals_data$Portfolio_Balance, 1)
-if (final_balance < 0) {
-  cat("The ORP runs out of funds in the year ", which(withdrawals_data$Portfolio_Balance < 0)[1], "\n")
-} else {
-  cat("The ORP has a final balance of $", round(final_balance, 2), "\n")
-}
-```
-**Average monthly income/withdrawal (TRS vs ORP)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -866,7 +830,7 @@ average_income_table_gt <- average_income_table |>
 
 average_income_table_gt
 ```
-**Maximum and minimum gap in monthly income between TRS and ORP**
+**Maximum and Minimum Gap in Monthly Income (TRS vs ORP)**
 The maximum gap represents the largest difference where TRS income was higher than ORP income.
 The minimum gap represents the largest difference where ORP income was higher than TRS income (a negative value indicates ORP is higher).
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -888,36 +852,10 @@ cat("Maximum gap in monthly income between TRS and ORP: $", round(max_gap, 2), "
 cat("Minimum gap in monthly income between TRS and ORP: $", round(min_gap, 2), "\n")
 
 ```
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: View Code
-combined_data <- tibble(
-  Month = seq(1, min(nrow(trs_income_df), nrow(withdrawals_data))),
-  TRS_Income = trs_income_df$Pension_Benefit[1:min(nrow(trs_income_df), nrow(withdrawals_data))],
-  ORP_Income = withdrawals_data$Withdrawals[1:min(nrow(trs_income_df), nrow(withdrawals_data))]
-)
-
-# Reshape the data into a long format for ggplot
-combined_data_long <- combined_data |>
-  pivot_longer(cols = c("TRS_Income", "ORP_Income"), 
-               names_to = "Plan", 
-               values_to = "Income") |>
-  mutate(Income = ifelse(Plan == "ORP_Income", -Income, Income))  # Reverse ORP income to match increasing trend
-
-# Create the plot
-ggplot(combined_data_long, aes(x = Month, y = Income, color = Plan)) +
-  geom_line(size = 1) +
-  labs(title = "Comparison of TRS and ORP Withdrawals/Income Over Retirement",
-       x = "Years After Retirement", 
-       y = "Monthly Income ($)",
-       color = "Retirement Plan") +
-  theme_minimal() +
-  scale_color_manual(values = c("TRS_Income" = "blue", "ORP_Income" = "red")) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
 
 # Monte Carlo Analysis
 In this section, we will compare the TRS and ORP retirement plans using Monte Carlo simulations. Both plans are simulated based on historical data.
+
 ## TRS Simulation
 Key Assumptions:
 - Salary growth: Simulated using historical wage growth data.
@@ -1005,13 +943,13 @@ ggplot(trs_results_df, aes(x = trs_benefit)) +
   geom_vline(aes(xintercept = mean(trs_benefit) - sd(trs_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
   geom_vline(aes(xintercept = mean(trs_benefit) + sd(trs_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
   geom_text(aes(x = mean(trs_benefit), y = 0.2, label = paste("Mean:", round(mean(trs_benefit)))), 
-            color = "black", vjust = -40, size = 3) +
+            color = "black", vjust = -45, size = 3) +
   geom_text(aes(x = mean(trs_benefit) - sd(trs_benefit), y = 0.2, 
                 label = paste("- 1 SD:", round(mean(trs_benefit) - sd(trs_benefit)))), 
-            color = "black", vjust = -40, size = 3) +
+            color = "black", vjust = -45, size = 3) +
   geom_text(aes(x = mean(trs_benefit) + sd(trs_benefit), y = 0.2, 
                 label = paste("+ 1 SD:", round(mean(trs_benefit) + sd(trs_benefit)))), 
-            color = "black", vjust = -40, size = 3) +
+            color = "black", vjust = -45, size = 3) +
   labs(
     title = "Distribution of Simulations for TRS Benefit",
     x = "TRS Benefit ($)",
@@ -1174,13 +1112,13 @@ ggplot(orp_results_df, aes(x = orp_benefit)) +
   geom_vline(aes(xintercept = mean(orp_benefit) - sd(orp_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
   geom_vline(aes(xintercept = mean(orp_benefit) + sd(orp_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
   geom_text(aes(x = mean(orp_benefit), y = 0.2, label = paste("Mean:", round(mean(orp_benefit)))), 
-            color = "black", vjust = -40, size = 3) +
+            color = "black", vjust = -45, size = 3) +
   geom_text(aes(x = mean(orp_benefit) - sd(orp_benefit), y = 0.2, 
                 label = paste("- 1 SD:", round(mean(orp_benefit) - sd(orp_benefit)))), 
-            color = "black", vjust = -40, size = 3) +
+            color = "black", vjust = -45, size = 3) +
   geom_text(aes(x = mean(orp_benefit) + sd(orp_benefit), y = 0.2, 
                 label = paste("+ 1 SD:", round(mean(orp_benefit) + sd(orp_benefit)))), 
-            color = "black", vjust = -40, size = 3) +
+            color = "black", vjust = -50, size = 3) +
   labs(
     title = "Distribution of Simulations for ORP Portfolio Value",
     x = "ORP Portfolio Value ($)",
@@ -1203,7 +1141,7 @@ cat("Probability of exhaustion: ", prob_exhaustion * 100, "%\n")
 
 **Chance of Higher ORP Income**
 Comparing the ORP income against the TRS pension shows that there’s a 60% chance that the ORP will provide higher monthly income than the TRS pension over the course of retirement. The TRS plan offers a guaranteed pension that will provide a fixed income based on your salary and years of service, offering stability and predictability. If you prefer certainty and lower risk, the TRS pension might be a better choice, though you may sacrifice the opportunity for higher returns seen in the ORP.
-*To reach this insight, I performed the simulations while storing each month's income rather than the final annual results for both TRS and ORP.*
+To reach this insight, I performed the simulations while storing each month's income rather than the final annual results for both TRS and ORP.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Simulation of Monthly Income for TRS
@@ -1394,3 +1332,19 @@ Ultimately, your decision should align with your personal risk tolerance, your r
 **Investment Strategy**: Your ORP balance’s performance depends significantly on the investments you choose. If you're comfortable with market volatility and are willing to take an active role in managing your investments, the ORP can be a more rewarding option. On the other hand, the TRS offers more predictable income with no exposure to the ups and downs of the market.
 
 **Retirement Goals**: If your goal is to have predictable, stable income for your entire retirement, the TRS plan’s defined benefit structure will provide more peace of mind. However, if you’re looking for greater control over your retirement funds and the potential for higher returns, the ORP might be a better fit.
+
+## Decision Factors for You
+- How long do you plan to stay at CUNY?
+- Are you comfortable with market fluctuations?
+- Do you value control over your investments? 
+- What is your current and expected future salary?
+
+### When Should You Consider TRS?
+- If you want **certainty** in retirement and prefer not to worry about market fluctuations.
+- If you have a **long career with CUNY**, since TRS benefits become more favorable the longer you work (especially after 20+ years of service).
+- If you want **steady, inflation-adjusted income** in retirement.
+
+### When Should You Consider ORP?
+- If you have a **shorter tenure at CUNY** or if you're considering leaving CUNY at some point and want to **take your retirement savings with you**.
+- If you're comfortable with **market risk** and want **more control over your investments**.
+- If you believe you can achieve higher returns through investment growth compared to a fixed pension benefit.
