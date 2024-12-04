@@ -11,6 +11,7 @@ author: "Cindy Li"
 #| code-title: View Code
 
 ```
+
 # Data Ingesting
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -300,6 +301,7 @@ retirement_benefit <- function(n, fas) {
 }
 
 trs_benefit = retirement_benefit(years_of_service, final_average_salary)
+print(trs_benefit)
 ```
 
 ## Optional Retirement Plan (ORP)
@@ -418,13 +420,14 @@ calculate_portfolio_value <- function(start_salary, years_worked, retirement_age
     international_pct <- international_equities_rate(age)
     bonds_pct <- bonds_rate(age)
     short_term_pct <- short_term_debt_rate(age)
-    
+          cat(age, year, "employee", employee_contrib,"employer", employer_contrib, "portfolio value", portfolio_value, "\n")
+
     # convert to average annual returns
-    us_equities_return <- (1 + long_run_avg_2004$equity_return_SPY_avg) ^ 12 - 1
-    international_return <- (1 + long_run_avg_2004$equity_return_ACWI_avg) ^ 12 - 1
-    bonds_return <- (1 + long_run_avg_2004$bond_return_avg/100) ^ 12 - 1
-    short_term_return <- (1 + long_run_avg_2004$debt_return_avg/100) ^ 12 - 1
-    
+    us_equities_return <- (1 + long_run_avg_2004$equity_return_SPY_avg)^12 - 1
+    international_return <- (1 + long_run_avg_2004$equity_return_ACWI_avg)^12 - 1
+    bonds_return <- (1 + long_run_avg_2004$bond_return_avg / 100)^12 - 1
+    short_term_return <- (1 + long_run_avg_2004$debt_return_avg / 100)^12 - 1
+
     # Calculate portfolio growth based on allocation
     portfolio_value <- portfolio_value * (1 + us_equities_pct * us_equities_return +
                                             international_pct * international_return +
@@ -432,7 +435,7 @@ calculate_portfolio_value <- function(start_salary, years_worked, retirement_age
                                             short_term_pct * short_term_return)
     
     # Simulate salary increase
-    current_salary <- current_salary * (1 + long_run_averages$wage_growth_avg)
+    current_salary <- current_salary * (1 + long_run_averages$wage_growth_avg + long_run_averages$inflation_avg)
   }
   
   return(portfolio_value)
@@ -441,7 +444,7 @@ calculate_portfolio_value <- function(start_salary, years_worked, retirement_age
 start_age = 40
 retirement_age = 65
 portfolio_value_at_retirement <- calculate_portfolio_value(initial_salary, years_of_service, retirement_age, start_age)
-
+print(portfolio_value_at_retirement)
 ```
 ## TRS First Month Retirement Benefit
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -449,6 +452,7 @@ portfolio_value_at_retirement <- calculate_portfolio_value(initial_salary, years
 #| code-title: View Code
 # Monthly TRS Benefit (assuming TRS benefit is paid monthly)
 trs_monthly_benefit <- trs_benefit / 12
+print(trs_monthly_benefit)
 ```
 
 ## ORP First Month Retirement Benefit
@@ -530,11 +534,7 @@ end_date <- as.Date("2024-10-01")
 total_years <- 20  
 trs_income_stream <- simulate_trs_with_inflation(monthly_trs_pension, INFLATION, retirement_date, end_date)
 
-# Output the results
-cat("TRS Pension Stream over 20 Years (monthly): \n")
-print(trs_income_stream)
-
-# Optionally, print the total amount received over 20 years
+# Print the total amount received over 20 years
 total_received <- sum(trs_income_stream)
 cat("Total amount received over 20 years: $", round(total_received, 2), "\n")
 
@@ -640,67 +640,12 @@ cat("Median TRS Benefit: $", median_trs_benefit, "\n")
 cat("25th and 75th Percentiles of TRS Benefit: $", quantiles_trs_benefit, "\n")
 ```
 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: View Code
-set.seed(123)  # For reproducibility
-n_simulations <- 200
-
-# TRS Simulation
-simulate_trs_monte_carlo <- function(n_simulations, starting_salary, years_worked, wage_growth_data, inflation_data) {
-  wage_growth_data <- na.omit(wage_growth_data)
-  inflation_data <- na.omit(inflation_data)
-
-  results <- numeric(n_simulations)
-  
-  for (sim in 1:n_simulations) {
-    salary <- starting_salary
-    salaries <- numeric(years_worked)
-    
-    for (i in 1:years_worked) {
-      # Resample wage growth and inflation data for each year
-      growth_rate <- sample(wage_growth_data$wage_growth_percent, 1)  
-      inflation_rate <- sample(inflation_data$inflation_rate, 1) 
-      salary <- salary * (1 + growth_rate + inflation_rate)
-      salaries[i] <- salary
-    }
-         cat("Simulation:", sim, "Year:", i, "\n")
-      cat("Wage Growth Rate: ", growth_rate, "\n")  # Print in percentage
-      cat("Inflation Rate: ", inflation_rate, "\n")  # Print in percentage
-      
-    # Calculate final average salary (last 3 years)
-    final_average_salary <- mean(tail(salaries, 3))
-    
-    # Calculate pension based on years worked
-    pension <- retirement_benefit(years_worked, final_average_salary)
-    monthly_pension <- pension / 12
-    results[sim] <- pension
-    # results[sim] <- monthly_pension
-  }
-  return(results)
-}
-starting_salary <- 40000 
-years_worked <- 20
-n_simulations <- 200
-
-# Run the simulation
-trs_results <- simulate_trs_monte_carlo(n_simulations, starting_salary, years_worked, WAGE, INFLATION)
-
-mean_trs_benefit <- mean(trs_results)
-median_trs_benefit <- median(trs_results)
-quantiles_trs_benefit <- quantile(trs_results, c(0.25, 0.75))
-
-# Print the results
-cat("Mean TRS Benefit: $", mean_trs_benefit, "\n")
-cat("Median TRS Benefit: $", median_trs_benefit, "\n")
-cat("25th and 75th Percentiles of TRS Benefit: $", quantiles_trs_benefit, "\n")
-```
-
+## ORP Contribution Simulation
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
 # ORP Simulation
-simulate_orp <- function(n_simulations, starting_salary, years_worked, 
+simulate_orp <- function(n_simulations, starting_salary, years_worked, starting_age,
                             wage_growth_data, inflation_data, equity_return_SPY_data, equity_return_ACWI_data,
                             bond_return_data, debt_return_data) {
   wage_growth_data <- na.omit(wage_growth_data)
@@ -709,7 +654,10 @@ simulate_orp <- function(n_simulations, starting_salary, years_worked,
   equity_return_ACWI_data <- na.omit(equity_return_ACWI_data)
   bond_return_data <- na.omit(bond_return_data)
   debt_return_data <- na.omit(debt_return_data)
-  
+  bond_return_data <- bond_return_data |> filter(date >= "2000-10-01") # limit historical data to sample from 
+  bond_return_data$bond_return <- bond_return_data$bond_return/100
+  debt_return_data$debt_return <- debt_return_data$debt_return/100
+
   results <- numeric(n_simulations)
 
   for (i in 1:n_simulations) {
@@ -717,59 +665,143 @@ simulate_orp <- function(n_simulations, starting_salary, years_worked,
     current_salary <- starting_salary
     total_contrib <- 0
     year <- 1
-    starting_age <- 40
     
     for (age in starting_age:(retirement_age - 1)) {
       # Resample returns for this year (with replacement)
-      wage_growth <- sample(wage_growth_data$wage_growth_percent, 1)
-      inflation_rate <- sample(inflation_data$inflation_rate, 1)
-      equity_return_SPY <- sample(equity_return_SPY_data$equity_return_SPY, 1)
+      wage_growth <- sample(wage_growth_data$wage_growth_percent, 1, replace = TRUE)
+      inflation_rate <- sample(inflation_data$inflation_rate, 1, replace = TRUE)
+      equity_return_SPY <- sample(equity_return_SPY_data$equity_return_SPY, 1, replace = TRUE)
       equity_return_ACWI <- sample(equity_return_ACWI_data$equity_return_ACWI, 1, replace = TRUE)
-      bond_return <- sample(bond_return_data$bond_return, 1, replace = TRUE)
+      bond_return <- sample(bond_return_data$bond_return, 1, replace = TRUE) 
       debt_return <- sample(debt_return_data$debt_return, 1, replace = TRUE)
-      
-      # Calculate the contribution for this year
+     
+       # Calculate the contribution for this year
       employee_contrib <- employee_contrib_rate(current_salary)
       employer_contrib <- current_salary * employer_contrib_rate(year)
       total_contrib <- employee_contrib + employer_contrib
       portfolio_value <- portfolio_value + total_contrib
-     
-      bonds_return <- (bond_return/100)
-      short_term_return <- (debt_return/100)
       
+      # convert to average annual returns
+      equity_return_SPY <- (1 + equity_return_SPY) ^ 12 - 1
+      equity_return_ACWI <- (1 + equity_return_ACWI) ^ 12 - 1
+      bond_return <- ((1 + bond_return) ^ 12) - 1
+      debt_return <- ((1 + debt_return)) ^ 12 - 1
+      
+      # Asset allocation based on age
       us_equities_pct <- us_equities_rate(age)
       international_pct <- international_equities_rate(age)
       bonds_pct <- bonds_rate(age)
       short_term_pct <- short_term_debt_rate(age)
+      
       portfolio_value <- portfolio_value * (1 + us_equities_pct * equity_return_SPY +
                                             international_pct * equity_return_ACWI +
-                                            bonds_pct * bonds_return +
-                                            short_term_pct * short_term_return)
-      current_salary <- current_salary * (1 + wage_growth)
+                                            bonds_pct * bond_return +
+                                            short_term_pct * debt_return)
+      current_salary <- current_salary * (1 + wage_growth + inflation_rate)
       year <- year + 1
     }
     results[i] <- portfolio_value
   }
   return(results)
 }
+
+starting_salary <- 50000
+years_worked <- 20
+starting_age <- 45
+
+# Run the Monte Carlo simulation
+orp_results <- simulate_orp(n_simulations, starting_salary, years_worked, starting_age,
+                           WAGE, INFLATION, SPY, ACWI, BOND, DEBT)
+mean_orp_benefit <- mean(orp_results)
+median_orp_benefit <- median(orp_results)
+quantiles_orp_benefit <- quantile(orp_results, c(0.25, 0.75))
+
+cat("Mean OPR Benefit: $", mean_orp_benefit, "\n")
+cat("Median OPR Benefit: $", median_orp_benefit, "\n")
+cat("25th and 75th Percentiles of OPR Benefit: $", quantiles_orp_benefit, "\n")
+```
+
+## ORP Withdrawal Simulation
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+simulate_orp_withdrawal <- function(orp_results, retirement_age, life_expectancy, withdrawal_rate, equity_return_SPY_data, equity_return_ACWI_data, bond_return_data, debt_return_data) {
+  remaining_balances <- numeric(length(orp_results))  # Store the remaining balances for each simulation
+  for (i in 1:length(orp_results)) {
+    remaining_balance <- orp_results[i] 
+    age_at_retirement <- retirement_age
+    years_in_retirement <- life_expectancy - age_at_retirement
+    # Simulate withdrawals over retirement years
+    for (year in 1:years_in_retirement) {
+      age_in_retirement <- age_at_retirement + year
+      # Withdraw a fixed percentage of the portfolio value
+      annual_withdrawal <- remaining_balance * withdrawal_rate
+      remaining_balance <- remaining_balance - annual_withdrawal
+      # Sample returns for this year
+      equity_return_SPY <- sample(equity_return_SPY_data$equity_return_SPY, 1)
+      equity_return_ACWI <- sample(equity_return_ACWI_data$equity_return_ACWI, 1)
+      bond_return <- sample(bond_return_data$bond_return, 1) /100
+      debt_return <- sample(debt_return_data$debt_return, 1) /100
+      
+      # Assume fixed portfolio allocations during retirement (could be modified)
+      us_equities_pct <- us_equities_rate(age_in_retirement)
+      international_pct <- international_equities_rate(age_in_retirement)
+      bonds_pct <- bonds_rate(age_in_retirement)
+      debt_pct <- short_term_debt_rate(age_in_retirement)
+      
+      remaining_balance <- remaining_balance * (1 + us_equities_pct * equity_return_SPY + 
+                                                international_pct * equity_return_ACWI +
+                                                bonds_pct * bond_return + 
+                                                debt_pct * debt_return)
+    }
+    
+    # Store the result for this simulation (1 = exhausted, 0 = not exhausted)
+    remaining_balances[i] <- remaining_balance
+  }
+  return(remaining_balances)
+}
+
+# Define your assumptions for the simulation
+withdrawal_rate <- 0.04  # 4% withdrawal rate
+life_expectancy <- 85  # Assume the person lives to 85 years old
+retirement_age <- 65  # Person retires at age 65
+monthly_orp <- orp_results/(life_expectancy- retirement_age)/12
+
+
+# Run the simulation for exhaustion probability
+simulate_orp_withdrawal <- simulate_orp_withdrawal(orp_results, retirement_age, life_expectancy, withdrawal_rate, SPY, ACWI, BOND, DEBT)
+cat("Remaining balances after withdrawals: ", simulate_orp_withdrawal, "\n")
+cat("Monthly withdrawals: ", monthly_orp, "\n")
+
 ```
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
-starting_salary <- 40000
-years_worked <- 20
+mean_result <- mean(orp_results)
+sd_result <- sd(orp_results)
 
-# Run the Monte Carlo simulation
-orp_results <- simulate_orp(n_simulations, starting_salary, years_worked, 
-                           WAGE, INFLATION, SPY, ACWI, BOND, DEBT)
-# Calculate the probability that an ORP employee exhausts their savings before death
+options(scipen = 999)
+orp_results_df <- data.frame(orp_benefit = orp_results)
 
-# Probability that ORP > TRS
-orp_vs_trs_prob <- mean(results$orp_results > results$trs_results)
-
-# Report the results
-cat("Probability ORP exhausts savings:", round(orp_exhaustion_prob, 4), "\n")
-cat("Probability ORP has higher income than TRS:", round(orp_vs_trs_prob, 4), "\n")
+ggplot(orp_results_df, aes(x = orp_benefit)) +
+  geom_histogram(bins = 25, fill = "lightblue", color = "darkblue", alpha = 0.7) +  # Adjust bins and colors as needed
+  geom_vline(aes(xintercept = mean(orp_benefit)), color = "blue", linetype = "dashed", size = 1.2) +
+  geom_vline(aes(xintercept = mean(orp_benefit) - sd(orp_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
+  geom_vline(aes(xintercept = mean(orp_benefit) + sd(orp_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
+  geom_text(aes(x = mean(orp_benefit), y = 0.2, label = paste("Mean:", round(mean(orp_benefit)))), 
+            color = "black", vjust = -40, size = 3) +
+  geom_text(aes(x = mean(orp_benefit) - sd(orp_benefit), y = 0.2, 
+                label = paste("- 1 SD:", round(mean(orp_benefit) - sd(orp_benefit)))), 
+            color = "black", vjust = -40, size = 3) +
+  geom_text(aes(x = mean(orp_benefit) + sd(orp_benefit), y = 0.2, 
+                label = paste("+ 1 SD:", round(mean(orp_benefit) + sd(orp_benefit)))), 
+            color = "black", vjust = -40, size = 3) +
+  labs(
+    title = "Distribution of ORP Portfolio Value",
+    x = "ORP Portfolio Value ($)",
+    y = "Frequency"
+  ) +
+  theme_minimal() 
 
 ```
