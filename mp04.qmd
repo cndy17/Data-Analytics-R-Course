@@ -70,7 +70,18 @@ Right off the bat, based on the information above, we can compare the two plans 
 
 ```
 
-# Data Ingesting
+# Historical Data
+We will understand the two retirement plan options by leveraging historical data from FRED and Alpha Vantage. Specifically, we'll focus on key metrics, such as wage growth, inflation rates, equity returns (from U.S. and international markets), and bond returns. 
+The data sets I will be pulling are as follows:
+**FRED:**
+- Average Hourly Earnings of All Employees
+- CPI for All Urban Consumers: U.S. City Average, All Items
+- 10-Year Treasury Constant Maturity Rate (Bond Market)
+- 3-Month Treasury Bill: Secondary Market Rate (Short Term Debt)
+**Alpha Vantage:**
+- SPY US Equity Market Returns
+- All Country World Index (International Equity Market Returns)
+
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Load Libraries
@@ -100,21 +111,24 @@ library(httr2)
 
 ```
 
-## Load Data
-In this project, I am using data from FRED and Alpha Vantage using private API keys.
-The data sets I will be pulling are as follows:
-**FRED:**
-- Average Hourly Earnings of All Employees
-- CPI for All Urban Consumers: U.S. City Average, All Items
-- 10-Year Treasury Constant Maturity Rate (Bond Market)
-- 3-Month Treasury Bill: Secondary Market Rate (Short Term Debt)
-**Alpha Vantage:**
-- SPY US Equity Market Returns
-- All Country World Index (International Equity Market Returns)
+**Wage Growth and Inflation**:
+Wage Growth: This represents the average increase in wages over time. It's important because your retirement plan may be based on your income, and understanding the wage growth trend helps estimate how much your salary could rise during your career, which in turn impacts the amount you contribute to your retirement.
+
+Inflation: Inflation impacts the purchasing power of your retirement savings. If inflation is high, your retirement income may lose value over time. By examining historical inflation trends, we can get a sense of how much inflation has eaten into savings over time, which helps us make adjustments to ensure your retirement savings grow enough to outpace inflation.
+
+**Market Returns: U.S. and International Equities (SPY & ACWI)**:
+U.S. Equities (SPY): The SPY ETF tracks the performance of the S&P 500, which represents large U.S. companies. Historically, equity markets have delivered strong returns over the long term, but they can be volatile in the short term. Knowing the historical return can help us predict how a stock-based retirement plan might perform.
+
+International Equities (ACWI): The ACWI index tracks the performance of global markets, which provides diversification. International equities may perform differently than U.S. equities, and adding them to your retirement plan could reduce overall risk while improving returns.
+
+**Bonds and Debt Returns**:
+Bonds Returns: Bonds are typically considered a safer, less volatile investment compared to equities. They can provide steady income and help balance the risk of a retirement portfolio.
+
+Debt Returns: Short-term debt instruments like 3-month Treasury bills offer another low-risk investment option. These instruments typically have lower returns compared to bonds or equities, but they can be a good choice if you’re seeking safety and liquidity.
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| code-title: View Code
+#| code-title: Data Ingestion
 
 # AlphaVantage: a commercial stock market data provider
 alpha_key <- readLines("AlphaVantage_key.txt")
@@ -185,10 +199,9 @@ debt_df$date <- as.Date(debt_df$date)
 
 ```
 
-## Data Processing
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| code-title: View Code
+#| code-title: Data Processing
 # Ensure all data frames are on a monthly frequency (aggregate if necessary) 
 # to have years of data but less granularity
 wage_df$date <- as.Date(wage_df$date)
@@ -230,7 +243,48 @@ combined_data <- reduce(list(WAGE, INFLATION, SPY, ACWI, BOND, DEBT),
                         function(x, y) merge(x, y, by = "date", all = TRUE))
 ```
 
-# Initial Analysis
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+
+par(mfrow = c(2, 3))
+ggplot(WAGE, aes(x = date, y = wage_growth_percent)) +
+  geom_line(color = "lightblue") +
+  labs(title = "Wage Growth Over Time", x = "Date", y = "Wage Growth (%)") +
+  theme_minimal()
+
+ggplot(INFLATION, aes(x = date, y = inflation_rate)) +
+  geom_line(color = "red") +
+  labs(title = "Inflation Rate Over Time", x = "Date", y = "Inflation Rate (%)") +
+  theme_minimal()
+
+ggplot(BOND, aes(x = date, y = bond_return)) +
+  geom_line(color = "green") +
+  labs(title = "Bond Returns Over Time", x = "Date", y = "Bond Return (%)") +
+  theme_minimal()
+
+ggplot(DEBT, aes(x = date, y = debt_return)) +
+  geom_line(color = "purple") +
+  labs(title = "Debt Returns Over Time", x = "Date", y = "Debt Return (%)") +
+  theme_minimal()
+
+ggplot(SPY, aes(x = date, y = equity_return_SPY)) +
+  geom_line(color = "orange") +
+  labs(title = "SPY Equity Returns Over Time", x = "Date", y = "SPY Return (%)") +
+  theme_minimal()
+
+ggplot(ACWI, aes(x = date, y = equity_return_ACWI)) +
+  geom_line(color = "brown") +
+  labs(title = "ACWI Equity Returns Over Time", x = "Date", y = "ACWI Return (%)") +
+  theme_minimal()
+
+
+```
+
+
+**Historical Averages**:
+Why is this important? If inflation outpaces wage growth, the real purchasing power of your retirement benefits could decrease. A retirement plan with a benefit that is tied to inflation (or adjusts for inflation) might be more beneficial in this case.If your retirement plan includes investments in short-term debt instruments, it might offer more security, particularly in uncertain economic times.
+
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
@@ -246,11 +300,23 @@ long_run_averages <- combined_data |>
     bond_return_avg = mean(bond_return, na.rm = TRUE),
     debt_return_avg = mean(debt_return, na.rm = TRUE)
   )
+
+long_run_avg <- combined_data |>
+  summarise(
+    wage_avg = mean(wage, na.rm = TRUE),
+    wage_growth_avg = mean(wage_growth_percent, na.rm = TRUE) * 100,
+    inflation_avg = mean(inflation_rate, na.rm = TRUE) * 100,
+    equity_return_SPY_avg = mean(equity_return_SPY, na.rm = TRUE) * 100,
+    equity_return_ACWI_avg = mean(equity_return_ACWI, na.rm = TRUE) * 100,
+    bond_return_avg = mean(bond_return, na.rm = TRUE),
+    debt_return_avg = mean(debt_return, na.rm = TRUE)
+  )
+
 # Table Display
-averages_flip <- long_run_averages |>
+averages_flip <- long_run_avg |>
   pivot_longer(cols = everything(), names_to = "Metric", values_to = "Average") |>
   mutate(Metric = recode(Metric,
-                         wage_avg = "Average Wage",
+                         wage_avg = "Average Wage ($)",
                          wage_growth_avg = "Average Wage Growth (%)",
                          inflation_avg = "Average Inflation Rate (%)",
                          equity_return_SPY_avg = "Average SPY Equity Return (%)",
@@ -271,7 +337,7 @@ averages_flip|>
 #| code-title: View Code
 long_run_data <- combined_data|>
   select(
-    wage, inflation_rate, equity_return_SPY, equity_return_ACWI, bond_return, debt_return
+    wage_growth_percent, inflation_rate, equity_return_SPY, equity_return_ACWI, bond_return, debt_return
   ) |>
   pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value")
 
@@ -284,6 +350,11 @@ ggplot(long_run_data, aes(x = "", y = Value)) +
   theme_minimal() +
   theme(axis.text.x = element_blank())
 ```
+
+**Correlation of Assets**:
+A key part of portfolio management is diversification, or spreading investments across different asset classes to reduce risk. Understanding how different assets (e.g., equities, bonds, inflation, and wage growth) are correlated is critical in this process.
+
+By looking at the correlation heatmap, we can see how the returns of stocks (both U.S. and international), bonds, and inflation interact. For instance, if equities and bonds are negatively correlated, you might want to have both in your portfolio to reduce risk. For example, if stock returns (SPY and ACWI) and bond returns are negatively correlated, this means that when stocks perform poorly, bonds might perform better, helping to cushion the impact of a downturn in the equity market.
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -346,6 +417,21 @@ salary_data <- wage_20yrs |>
   )
 ```
 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Visualizing salary growth over the next 20 years
+ggplot(salary_data, aes(x = date, y = salary)) +
+  geom_line(color = "darkgreen", size = 1) +
+  labs(
+    title = "Salary Growth Over 20 Years",
+    x = "Year",
+    y = "Salary ($)",
+    subtitle = paste("Starting Salary:", initial_salary, "with 20 Years of Wage Growth")
+  ) +
+  theme_minimal()
+
+```
 **Contribution Based on Last 3 Years of Salary**
 The TRS pension benefit is based on your final average salary (FAS), which is determined by the average salary over the last three years of employment.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -467,6 +553,7 @@ calculate_portfolio_value <- function(start_salary, years_worked, retirement_age
   portfolio_value <- 0
   current_salary <- start_salary
   year <- 1
+  portfolio_values <- data.frame(Year = numeric(0), Portfolio_Value = numeric(0))
   
   # Simulate annual contributions and growth until retirement
   for (age in current_age:(retirement_age - 1)) {
@@ -480,8 +567,6 @@ calculate_portfolio_value <- function(start_salary, years_worked, retirement_age
     international_pct <- international_equities_rate(age)
     bonds_pct <- bonds_rate(age)
     short_term_pct <- short_term_debt_rate(age)
-          cat(age, year, "employee", employee_contrib,"employer", employer_contrib, "portfolio value", portfolio_value, "\n")
-
     # convert to average annual returns
     us_equities_return <- (1 + long_run_avg_2004$equity_return_SPY_avg)^12 - 1
     international_return <- (1 + long_run_avg_2004$equity_return_ACWI_avg)^12 - 1
@@ -496,15 +581,30 @@ calculate_portfolio_value <- function(start_salary, years_worked, retirement_age
     
     # Simulate salary increase
     current_salary <- current_salary * (1 + long_run_averages$wage_growth_avg + long_run_averages$inflation_avg)
+    portfolio_values <- rbind(portfolio_values, data.frame(Year = age, Portfolio_Value = portfolio_value))
   }
-  
-  return(portfolio_value)
+  return(portfolio_values)
 }
 
 start_age = 40
 retirement_age = 65
 portfolio_value_at_retirement <- calculate_portfolio_value(initial_salary, years_of_service, retirement_age, start_age)
-print(portfolio_value_at_retirement)
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Monthly TRS Benefit (assuming TRS benefit is paid monthly)
+ggplot(portfolio_value_at_retirement, aes(x = Year, y = Portfolio_Value)) +
+  geom_line(color = "blue", size = 1) +
+  labs(
+    title = "Portfolio Value Growth Over Time",
+    x = "Age",
+    y = "Portfolio Value ($)",
+    subtitle = paste("Initial Salary: $", initial_salary, "Years of Service: ", years_of_service)
+  ) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma)
 ```
 
 ## Comparison of TRS and ORP First Month Retirement Benefits
@@ -519,7 +619,8 @@ After retirement, the ORP monthly benefit can be calculated based on a 4% withdr
 # 2. **ORP: Calculate Portfolio Value at Retirement**
 # the first month’s payout is typically a 4% withdrawal rate
 # Sustainable withdrawal rate (e.g., 4% annually, which is 0.33% monthly)
-orp_monthly_withdrawal <- portfolio_value_at_retirement * 0.04 / 12
+final_portfolio_value <- portfolio_value_at_retirement$Portfolio_Value[nrow(portfolio_value_at_retirement)]
+orp_monthly_withdrawal <- final_portfolio_value * 0.04 / 12
 
 comparison_table_gt <- tibble(
   Plan = c("TRS", "ORP"),
@@ -549,7 +650,6 @@ comparison_table_gt
 # Long Run Averages Retirement Calculations
 ## TRS Withdrawals After Retirement
 The TRS pension offers a steady, inflation-adjusted income during retirement. This income increases each year based on inflation, but the increase is capped at 3% annually. The adjustment is effective every September, using the Consumer Price Index (CPI) of the previous 12 months to calculate the inflation rate.
-
 **Inflation Adjustement**
 To simulate the TRS benefit after retirement, we adjust the pension payments based on inflation. The adjustment is capped at 3% annually. The inflation adjustement is effective each September and the CPI used is the aggregate monthly CPI of the previous 12 months.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -614,6 +714,28 @@ cat("Total amount received over 20 years: $", round(total_received, 2), "\n")
 
 ```
 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+
+trs_income_df <- data.frame(
+  Month = seq(retirement_date, by = "month", length.out = total_years*12),
+  Pension_Benefit = trs_income_stream
+)
+
+trs_income_df$cumulative_received <- cumsum(trs_income_df$Pension_Benefit)
+
+ggplot(trs_income_df, aes(x = Month)) + 
+  geom_line(aes(y = Pension_Benefit, color = "Pension Benefit"), size = 1) +
+  scale_y_continuous(
+    name = "Pension Benefit ($)") +
+  labs(title = "TRS Monthly Benefit",
+       x = "Date", 
+       y = "Monthly Pension Benefit ($)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
 ## ORP Withdrawals After Retirement
 With the ORP, the employee builds a retirement portfolio over their working years and begins drawing down funds after retirement. The amount withdrawn each year is typically a percentage of the portfolio value, with a common recommendation being 4% annually.
 In addition to withdrawals, the remaining portfolio continues to grow during retirement at an assumed annual return of 3%. This growth helps maintain the portfolio balance and ensures that funds last throughout retirement. 
@@ -621,32 +743,177 @@ The following code simulates the withdrawals from the ORP portfolio over a 20-ye
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: View Code
-# ORP
-withdraw_after_retirement <- function(portfolio_value, withdrawal_rate = 0.04, years_retired = 20) {
-  annual_withdrawal <- portfolio_value * withdrawal_rate
-  remaining_balance <- portfolio_value
+
+withdraw_after_retirement <- function(portfolio_values, withdrawal_rate = 0.04, years_retired = 20) {
+  monthly_withdrawal_rate <- withdrawal_rate / 12
+  monthly_growth_rate <- 1.03^(1/12)
+  
+  portfolio_value_at_retirement <- tail(portfolio_values$Portfolio_Value, 1)
+  remaining_balance <- portfolio_value_at_retirement
   withdrawals <- numeric(years_retired)
+  portfolio_balance <- numeric(years_retired)
+  
   for (year in 1:years_retired) {
-    withdrawals[year] <- annual_withdrawal
-    remaining_balance <- remaining_balance - annual_withdrawal
-    remaining_balance <- remaining_balance * 1.03  # 3% growth during retirement
+    withdrawals[year] <- remaining_balance * withdrawal_rate
+    remaining_balance <- remaining_balance - withdrawals[year]
+    remaining_balance <- remaining_balance * 1.03
+
+    portfolio_balance[year] <- remaining_balance
     if (remaining_balance < 0) {
-      withdrawals[year] <- withdrawals[year] + remaining_balance  # Adjust last withdrawal
+      withdrawals[year] <- withdrawals[year] + remaining_balance
       break
     }
   }
-  return(sum(withdrawals))
+  return(data.frame(Year = 1:years_retired, Withdrawals = withdrawals, Portfolio_Balance = portfolio_balance))
 }
+```
 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
 start_age = 40
 retirement_age = 65
+life_expectancy = 85
 portfolio_value_at_retirement <- calculate_portfolio_value(initial_salary, years_of_service, retirement_age, start_age)
-total_withdrawals <- withdraw_after_retirement(portfolio_value_at_retirement)
-orp_difference = portfolio_value_at_retirement - total_withdrawals
+withdrawals_data <- withdraw_after_retirement(portfolio_value_at_retirement)
 
-cat("Portfolio value at retirement: $", round(portfolio_value_at_retirement, 2), "\n")
-cat("Total withdrawals over retirement: $", round(total_withdrawals, 2), "\n")  
-  
+ggplot(withdrawals_data, aes(x = Year)) + 
+  geom_line(aes(y = Withdrawals, color = "Annual Withdrawals"), size = 1) +
+  scale_y_continuous(
+    name = "Amount ($)",
+    sec.axis = sec_axis(~ ., name = "Portfolio Balance ($)")
+  ) +
+  labs(title = "Annual ORP Withdrawals Over Retirement",
+       x = "Years After Retirement",
+       y = "Annual Withdrawals ($)") +
+  theme_minimal() +
+  scale_color_manual(values = c("Annual Withdrawals" = "blue", "Portfolio Balance" = "red"))
+
+# Print results
+cat("Portfolio value at retirement: $", round(tail(portfolio_value_at_retirement$Portfolio_Value, 1), 2), "\n")
+cat("Total withdrawals over retirement: $", round(sum(withdrawals_data$Withdrawals), 2), "\n")
+
+```
+
+Since ORP is withdrawn annually, to compare it with the monthly TRS withdrawals, below, I am displaying ORP withdrawals on a month to month basis. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+
+withdrawals_data_monthly <- data.frame(
+Month = seq.Date(from = as.Date("2020-01-01"), 
+                   by = "month", 
+                   length.out = years_retired * 12),
+  Withdrawals = rep(withdrawals_data$Withdrawals / 12, each = 12), 
+  Portfolio_Balance = rep(withdrawals_data$Portfolio_Balance, each = 12) 
+)
+combined_df <- merge(withdrawals_data_monthly, trs_income_df, by = "Month")
+ggplot(combined_df, aes(x = Month)) + 
+  geom_line(aes(y = Withdrawals, color = "Monthly Withdrawals"), size = 1) +
+  geom_line(aes(y = Pension_Benefit, color = "Monthly Pension Benefit"), size = 1) +
+  scale_y_continuous(
+    name = "Amount ($)") +
+  labs(title = "Monthly ORP Withdrawals vs TRS Pension Benefit",
+       x = "Months After Retirement",
+       y = "Monthly Withdrawals / Pension Benefit ($)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_manual(values = c("Monthly Withdrawals" = "blue", 
+                                "Monthly Pension Benefit" = "brown"))
+```
+
+### Historical Outcomes
+**Whether the employee runs out of funds before death and/or has funds to leave to heirs (ORP only)**
+The annual 4% withdrawals are counterbalanced by the assumed annual growth of the portfolio by 3%. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Check for remaining balance in ORP at the end of retirement
+final_balance <- tail(withdrawals_data$Portfolio_Balance, 1)
+if (final_balance < 0) {
+  cat("The ORP runs out of funds in the year ", which(withdrawals_data$Portfolio_Balance < 0)[1], "\n")
+} else {
+  cat("The ORP has a final balance of $", round(final_balance, 2), "\n")
+}
+```
+**Average monthly income/withdrawal (TRS vs ORP)**
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+avg_trs_income <- mean(trs_income_df$Pension_Benefit)
+avg_orp_income <- mean(withdrawals_data$Withdrawals)/12
+
+average_income_table <- tibble(
+  Retirement_Plan = c("TRS", "ORP"),
+  Average_Monthly_Income = c(round(avg_trs_income, 2), round(avg_orp_income, 2))
+)
+
+average_income_table_gt <- average_income_table |>
+  gt() |>
+  tab_header(
+    title = "Average Monthly Income for TRS and ORP"
+  ) |>
+  cols_label(
+    Retirement_Plan = "Retirement Plan",
+    Average_Monthly_Income = "Average Monthly Income ($)"
+  ) |>
+  fmt_currency(
+    columns = vars(Average_Monthly_Income),
+    currency = "USD",
+    use_seps = TRUE,
+    decimals = 2
+  )
+
+average_income_table_gt
+```
+**Maximum and minimum gap in monthly income between TRS and ORP**
+The maximum gap represents the largest difference where TRS income was higher than ORP income.
+The minimum gap represents the largest difference where ORP income was higher than TRS income (a negative value indicates ORP is higher).
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Calculate monthly income gap between TRS and ORP for each year
+trs_monthly_income <- trs_income_df$Pension_Benefit
+orp_monthly_income <- withdrawals_data$Withdrawals
+
+# Ensure both vectors are of the same length (use the same years for both plans)
+common_years <- min(length(trs_monthly_income), length(orp_monthly_income))
+monthly_gap <- abs(trs_monthly_income[1:common_years] - orp_monthly_income[1:common_years])
+
+# Maximum and minimum gap
+max_gap <- max(monthly_gap)
+min_gap <- min(monthly_gap)
+
+cat("Maximum gap in monthly income between TRS and ORP: $", round(max_gap, 2), "\n")
+cat("Minimum gap in monthly income between TRS and ORP: $", round(min_gap, 2), "\n")
+
+```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+combined_data <- tibble(
+  Month = seq(1, min(nrow(trs_income_df), nrow(withdrawals_data))),
+  TRS_Income = trs_income_df$Pension_Benefit[1:min(nrow(trs_income_df), nrow(withdrawals_data))],
+  ORP_Income = withdrawals_data$Withdrawals[1:min(nrow(trs_income_df), nrow(withdrawals_data))]
+)
+
+# Reshape the data into a long format for ggplot
+combined_data_long <- combined_data |>
+  pivot_longer(cols = c("TRS_Income", "ORP_Income"), 
+               names_to = "Plan", 
+               values_to = "Income") |>
+  mutate(Income = ifelse(Plan == "ORP_Income", -Income, Income))  # Reverse ORP income to match increasing trend
+
+# Create the plot
+ggplot(combined_data_long, aes(x = Month, y = Income, color = Plan)) +
+  geom_line(size = 1) +
+  labs(title = "Comparison of TRS and ORP Withdrawals/Income Over Retirement",
+       x = "Years After Retirement", 
+       y = "Monthly Income ($)",
+       color = "Retirement Plan") +
+  theme_minimal() +
+  scale_color_manual(values = c("TRS_Income" = "blue", "ORP_Income" = "red")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 # Monte Carlo Analysis
@@ -720,6 +987,38 @@ quantiles_trs_benefit <- quantile(trs_results, c(0.25, 0.75))
 cat("Mean TRS Benefit: $", mean_trs_benefit, "\n")
 cat("Median TRS Benefit: $", median_trs_benefit, "\n")
 cat("25th and 75th Percentiles of TRS Benefit: $", quantiles_trs_benefit, "\n")
+```
+
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+mean_result <- mean(trs_results)
+sd_result <- sd(trs_results)
+
+options(scipen = 999)
+trs_results_df <- data.frame(trs_benefit = trs_results)
+
+ggplot(trs_results_df, aes(x = trs_benefit)) +
+  geom_histogram(bins = 25, fill = "lightblue", color = "darkblue", alpha = 0.7) + 
+  geom_vline(aes(xintercept = mean(trs_benefit)), color = "blue", linetype = "dashed", size = 1.2) +
+  geom_vline(aes(xintercept = mean(trs_benefit) - sd(trs_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
+  geom_vline(aes(xintercept = mean(trs_benefit) + sd(trs_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
+  geom_text(aes(x = mean(trs_benefit), y = 0.2, label = paste("Mean:", round(mean(trs_benefit)))), 
+            color = "black", vjust = -40, size = 3) +
+  geom_text(aes(x = mean(trs_benefit) - sd(trs_benefit), y = 0.2, 
+                label = paste("- 1 SD:", round(mean(trs_benefit) - sd(trs_benefit)))), 
+            color = "black", vjust = -40, size = 3) +
+  geom_text(aes(x = mean(trs_benefit) + sd(trs_benefit), y = 0.2, 
+                label = paste("+ 1 SD:", round(mean(trs_benefit) + sd(trs_benefit)))), 
+            color = "black", vjust = -40, size = 3) +
+  labs(
+    title = "Distribution of Simulations for TRS Benefit",
+    x = "TRS Benefit ($)",
+    y = "Frequency"
+  ) +
+  theme_minimal() 
+
 ```
 
 ## ORP Contribution Simulation
@@ -857,8 +1156,6 @@ monthly_orp <- orp_results/(life_expectancy- retirement_age)/12
 
 # Run the simulation for exhaustion probability
 simulate_orp_withdrawal <- simulate_orp_withdrawal(orp_results, retirement_age, life_expectancy, withdrawal_rate, SPY, ACWI, BOND, DEBT)
-cat("Remaining balances after withdrawals: ", simulate_orp_withdrawal, "\n")
-cat("Monthly withdrawals: ", monthly_orp, "\n")
 
 ```
 
@@ -872,7 +1169,7 @@ options(scipen = 999)
 orp_results_df <- data.frame(orp_benefit = orp_results)
 
 ggplot(orp_results_df, aes(x = orp_benefit)) +
-  geom_histogram(bins = 25, fill = "lightblue", color = "darkblue", alpha = 0.7) +  # Adjust bins and colors as needed
+  geom_histogram(bins = 25, fill = "lightblue", color = "darkblue", alpha = 0.7) + 
   geom_vline(aes(xintercept = mean(orp_benefit)), color = "blue", linetype = "dashed", size = 1.2) +
   geom_vline(aes(xintercept = mean(orp_benefit) - sd(orp_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
   geom_vline(aes(xintercept = mean(orp_benefit) + sd(orp_benefit)), color = "blue", linetype = "dotted", size = 1.2) +
@@ -885,10 +1182,215 @@ ggplot(orp_results_df, aes(x = orp_benefit)) +
                 label = paste("+ 1 SD:", round(mean(orp_benefit) + sd(orp_benefit)))), 
             color = "black", vjust = -40, size = 3) +
   labs(
-    title = "Distribution of ORP Portfolio Value",
+    title = "Distribution of Simulations for ORP Portfolio Value",
     x = "ORP Portfolio Value ($)",
     y = "Frequency"
   ) +
   theme_minimal() 
 
 ```
+
+**ORP Depletion Probability**
+The simulations indicate that there is no risk of your ORP balance depleting during retirement. This is a strong positive, suggesting that your ORP contributions, along with the returns on your investments, are sufficient to sustain withdrawals throughout retirement. The ORP offers a degree of flexibility, allowing you to withdraw funds as needed, but the fact that the simulations show no depletion is reassuring.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+# Calculate the probability of exhaustion
+prob_exhaustion <- mean(simulate_orp_withdrawal == 0)
+cat("Probability of exhaustion: ", prob_exhaustion * 100, "%\n")
+
+```
+
+**Chance of Higher ORP Income**
+Comparing the ORP income against the TRS pension shows that there’s a 60% chance that the ORP will provide higher monthly income than the TRS pension over the course of retirement. The TRS plan offers a guaranteed pension that will provide a fixed income based on your salary and years of service, offering stability and predictability. If you prefer certainty and lower risk, the TRS pension might be a better choice, though you may sacrifice the opportunity for higher returns seen in the ORP.
+*To reach this insight, I performed the simulations while storing each month's income rather than the final annual results for both TRS and ORP.*
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Simulation of Monthly Income for TRS
+set.seed(123)  # For reproducibility
+n_simulations <- 200
+
+simulate_trs_monthly <- function(n_simulations, initial_salary, years_worked, wage_growth_data, inflation_data) {
+  wage_growth_data <- na.omit(wage_growth_data)
+  inflation_data <- na.omit(inflation_data)
+  results <- matrix(NA, n_simulations, years_worked * 12) 
+  
+  for (sim in 1:n_simulations) {
+    salary <- initial_salary
+    salaries <- numeric(years_worked)
+    retirement_benefit <- numeric(years_worked * 12)  
+    
+    # Calculate salary growth over time
+    for (i in 1:years_worked) {
+      growth_rate <- sample(wage_growth_data$wage_growth_percent, 1)  # Sample growth rate from the data
+      inflation_rate <- sample(inflation_data$inflation_rate, 1)  # Sample inflation rate
+      salary <- salary * (1 + growth_rate + inflation_rate)  
+      salaries[i] <- salary  
+    }
+    
+    final_average_salary <- mean(tail(salaries, 3))
+    
+    # Calculate TRS benefit (monthly payout) based on the FAS
+    trs_benefit <- retirement_benefit_function(years_worked, final_average_salary)
+    current_pension <- trs_benefit
+    retirement_benefit[1] <- current_pension
+    
+    # Simulate monthly adjustments (based on inflation every September)
+    for (current_month in 2:(years_worked * 12)) {
+      current_year <- ceiling(current_month / 12) 
+      current_month_in_year <- current_month %% 12
+      if (current_month_in_year == 0) current_month_in_year <- 12  
+      if (current_month_in_year == 9) {  
+        sampled_inflation <- sample(inflation_data$inflation_rate, 12, replace = TRUE) 
+        mean_inflation <- mean(sampled_inflation)
+        adjustment <- inflation_adjustment(mean_inflation) 
+        current_pension <- current_pension * (1 + adjustment)
+      }
+      retirement_benefit[current_month] <- current_pension
+    }
+    results[sim, ] <- retirement_benefit 
+  }
+  return(results) 
+}
+# Example usage
+starting_salary <- 50000
+years_worked <- 20
+n_simulations <- 200
+
+monthly_trs_results <- simulate_trs_monte_carlo(n_simulations, starting_salary, years_worked, WAGE, INFLATION)
+
+months <- rep(1:(years_worked * 12), n_simulations)  # Create a vector for the month numbers (1 to years_worked * 12)
+simulations <- rep(1:n_simulations, each = years_worked * 12)  # Create a vector for simulation numbers (1 to n_simulations)
+
+# Create data frame
+trs_monthly_monte_carlo_df <- data.frame(
+  Simulation = simulations,
+  Month = months,
+  RetirementBenefit = as.vector(monthly_trs_results)
+)
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Simulation of Monthly Income for ORP
+
+simulate_monthly_orp_withdrawal <- function(orp_results, retirement_age, life_expectancy, withdrawal_rate, 
+                                           equity_return_SPY_data, equity_return_ACWI_data, 
+                                           bond_return_data, debt_return_data) {
+  months_in_retirement <- (life_expectancy - retirement_age) * 12
+  monthly_withdrawals <- matrix(NA, nrow = length(orp_results), ncol = months_in_retirement)
+  
+  # Run simulations for each ORP result
+  for (i in 1:length(orp_results)) {
+    remaining_balance <- orp_results[i]  
+    age_at_retirement <- retirement_age
+    
+    # Calculate monthly withdrawal amount based on the initial balance and withdrawal rate
+    monthly_withdrawal <- (remaining_balance * withdrawal_rate) / 12 
+    
+    # Simulate withdrawals and returns for each month
+    for (month in 1:months_in_retirement) {
+      monthly_withdrawals[i, month] <- monthly_withdrawal
+      
+      # Sample monthly returns from the annual returns data
+      equity_return_SPY <- sample(equity_return_SPY_data$equity_return_SPY, 1) / 12
+      equity_return_ACWI <- sample(equity_return_ACWI_data$equity_return_ACWI, 1) / 12
+      bond_return <- sample(bond_return_data$bond_return, 1) / 100 / 12  
+      debt_return <- sample(debt_return_data$debt_return, 1) / 100 / 12
+      
+      # Portfolio allocations (can be modified to change with age)
+      us_equities_pct <- us_equities_rate(age_at_retirement + floor(month / 12)) 
+      international_pct <- international_equities_rate(age_at_retirement + floor(month / 12))
+      bonds_pct <- bonds_rate(age_at_retirement + floor(month / 12))
+      debt_pct <- short_term_debt_rate(age_at_retirement + floor(month / 12))
+      
+      # Calculate the monthly return based on portfolio allocations
+      remaining_balance <- remaining_balance * (1 + us_equities_pct * equity_return_SPY + 
+                                                international_pct * equity_return_ACWI +
+                                                bonds_pct * bond_return + 
+                                                debt_pct * debt_return)
+      
+      # Subtract monthly withdrawal from remaining balance
+      remaining_balance <- remaining_balance - monthly_withdrawal
+    }
+  }
+  return(monthly_withdrawals) 
+}
+
+withdrawal_rate <- 0.04 
+life_expectancy <- 85  
+retirement_age <- 65 
+
+monthly_balances <- simulate_monthly_orp_withdrawal(orp_results, retirement_age, life_expectancy, withdrawal_rate, SPY, ACWI, BOND, DEBT)
+
+# Create the correct months and simulations vectors:
+months <- rep(1:((life_expectancy - retirement_age) * 12), length(orp_results)) 
+simulations <- rep(1:length(orp_results), each = (life_expectancy - retirement_age) * 12) 
+
+# Create the ORP monthly data frame
+orp_monthly_monte_carlo_df <- data.frame(
+  Simulation = simulations,
+  Month = months,
+  Withdrawal = as.vector(monthly_balances)
+)
+```
+
+``` {r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: View Code
+combined_monte_carlo_df <- full_join(trs_monthly_monte_carlo_df, 
+                                     orp_monthly_monte_carlo_df, 
+                                     by = c("Simulation", "Month"))
+
+analyze_simulation <- function(simulation_data, num_simulations) {
+  simulation_data <- simulation_data |>
+    mutate(
+      orp_benefit = as.numeric(Withdrawal),
+      trs_benefit = as.numeric(RetirementBenefit),
+      orp_greater = orp_benefit > trs_benefit
+    )
+  
+  # Calculate the probability that ORP benefit exceeds TRS benefit
+  income_exceeds_trs_probability <- simulation_data |>
+    summarize(probability = mean(orp_greater, na.rm = TRUE)) |>
+    pull(probability)
+  
+  # Calculate the depletion probability: proportion of simulations where ORP balance reaches 0
+  depletion_probability <- simulation_data |>
+    filter(orp_benefit == 0) |>
+    summarize(probability = n_distinct(Simulation) / num_simulations) |>
+    pull(probability)
+  
+  result_table <- data.frame(
+    Metric = c("Probability of ORP Depletion", "Probability ORP Income Exceeds TRS"),
+    Value = c(depletion_probability, income_exceeds_trs_probability)
+  )
+  return(result_table)
+}
+
+
+monte_carlo_analysis <- analyze_simulation(combined_monte_carlo_df, n_simulations)
+monte_carlo_analysis |>
+    gt() |>
+    tab_header(title = "Simulation Analysis Results") |>
+    cols_label(Metric = "Metric", Value = "Probability") |>
+    fmt_number(columns = vars(Value), decimals = 2, use_seps = TRUE) |>
+    tab_spanner(label = "Analysis Results", columns = vars(Metric, Value)) |>
+    tab_style(style = list(cell_text(weight = "bold")),
+              locations = cells_column_labels(columns = everything())
+    )
+```
+
+# Conclusion
+ORP: The simulations indicate a low risk of ORP depletion, and there is a 60% chance that it will exceed the TRS pension in terms of income. This makes the ORP an attractive option for those who are comfortable with investment risk and want the potential for growth.
+
+TRS: The TRS plan provides certainty with a guaranteed pension. It may be a better fit for someone who prioritizes stability and less exposure to market risk.
+
+Ultimately, your decision should align with your personal risk tolerance, your retirement goals, and your desired level of control over your retirement savings. If you're seeking predictability, the TRS may be the better choice. If you’re more comfortable with taking on some risk for the potential of higher rewards, the ORP could provide a more favorable outcome in the long run.
+
+## Additional Considerations:
+**Longevity Risk**: Given that the simulations show no ORP depletion, your funds should last throughout retirement. However, as a defined-contribution plan, the ORP can be more sensitive to market conditions. If you are risk-averse or expect to live longer than average, the stability of the TRS pension may appeal more to you.
+
+**Investment Strategy**: Your ORP balance’s performance depends significantly on the investments you choose. If you're comfortable with market volatility and are willing to take an active role in managing your investments, the ORP can be a more rewarding option. On the other hand, the TRS offers more predictable income with no exposure to the ups and downs of the market.
+
+**Retirement Goals**: If your goal is to have predictable, stable income for your entire retirement, the TRS plan’s defined benefit structure will provide more peace of mind. However, if you’re looking for greater control over your retirement funds and the potential for higher returns, the ORP might be a better fit.
