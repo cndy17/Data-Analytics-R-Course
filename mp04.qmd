@@ -105,6 +105,7 @@ if (!require("gt")) install.packages("gt")
 if (!require("plotly")) install.packages("plotly")
 if (!require("purrr")) install.packages("purrr")
 if (!require("httr2")) install.packages("httr2")
+if (!require("httr2")) install.packages("gganimate")
 
 library(readr)
 library(sf)
@@ -117,6 +118,7 @@ library(gt)
 library(plotly)
 library(purrr)
 library(httr2)
+library(gganimate)
 
 ```
 
@@ -1357,33 +1359,7 @@ monte_carlo_analysis |>
     )
 ```
 Below, you can see ORP(red) monthly amounts have much more variation than TRS(blue).
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Simulation of Monthly Income for TRS
-# Load necessary libraries
-install.packages("gganimate")
 
-library(gganimate)
-
-p <- ggplot(combined_monte_carlo_df, aes(x = Month)) +
-  geom_line(aes(y = RetirementBenefit, color = "TRS Retirement Benefit"), size = 0.8, alpha = 0.7) +
-  geom_line(aes(y = Withdrawal, color = "ORP Withdrawal"), size = 0.8, alpha = 0.7) +
-  labs(title = "Retirement Simulation", 
-       subtitle = "Simulation: {frame_time}",
-       x = "Month", 
-       y = "Amount ($)", 
-       color = "Simulation Type") +
-  scale_color_manual(values = c("TRS Retirement Benefit" = "blue", "ORP Withdrawal" = "red")) +
-  theme_minimal() +
-  theme(legend.position = "bottom") +
-  transition_states(Simulation, transition_length = 1, state_length = 1) +  # Animate over the "Simulation" variable
-  ease_aes('linear')
-
-anim <- animate(p, nframes = length(unique(combined_monte_carlo_df$Simulation)), 
-                fps = 5, width = 800, height = 600)
-anim_save("animation.gif", anim)
-
-```
 ![Animation](images/animation.gif)
 
 # Conclusion
