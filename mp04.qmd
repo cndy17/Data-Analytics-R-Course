@@ -1361,6 +1361,8 @@ Below, you can see ORP(red) monthly amounts have much more variation than TRS(bl
 #| code-fold: true
 #| code-title: Simulation of Monthly Income for TRS
 # Load necessary libraries
+install.packages("gganimate")
+
 library(gganimate)
 
 p <- ggplot(combined_monte_carlo_df, aes(x = Month)) +
@@ -1377,9 +1379,13 @@ p <- ggplot(combined_monte_carlo_df, aes(x = Month)) +
   transition_states(Simulation, transition_length = 1, state_length = 1) +  # Animate over the "Simulation" variable
   ease_aes('linear')
 
-animate(p, nframes = length(unique(combined_monte_carlo_df$Simulation)), 
-        fps = 1, width = 800, height = 600)
+anim <- animate(p, nframes = length(unique(combined_monte_carlo_df$Simulation)), 
+                fps = 5, width = 800, height = 600)
+anim_save("animation.gif", anim)
+
 ```
+![Animation](images/animation.gif)
+
 # Conclusion
 
 ORP: The simulations indicate a low risk of ORP depletion, and there is a 60% chance that it will exceed the TRS pension in terms of income. This makes the ORP an attractive option for those who are comfortable with investment risk and want the potential for growth.
