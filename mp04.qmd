@@ -1358,9 +1358,6 @@ monte_carlo_analysis |>
               locations = cells_column_labels(columns = everything())
     )
 ```
-Below, you can see ORP(red) monthly amounts have much more variation than TRS(blue).
-
-![Animation](images/animation.gif)
 
 # Conclusion
 
