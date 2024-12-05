@@ -159,6 +159,25 @@ inflation_df <- data.frame(date = sapply(inflation_data, function(x) x$date),
                            inflation = sapply(inflation_data, function(x) as.numeric(x$value)))
 inflation_df$date <- as.Date(inflation_df$date)
 
+# Bond market total returns
+# FRED: GS10 (10-Year Treasury Constant Maturity Rate)
+bond_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=GS10&api_key=", fred_key, "&file_type=json&frequency=m")
+bond_response <- request(bond_url) |> req_perform()
+bond_data <- resp_body_json(bond_response)[["observations"]]
+bond_df <- data.frame(date = sapply(bond_data, function(x) x$date),
+                      bond_return = sapply(bond_data, function(x) as.numeric(x$value)))
+bond_df$date <- as.Date(bond_df$date)
+
+# Short-term debt returns7
+# FRED: DTB3 (3-Month Treasury Bill: Secondary Market Rate)
+debt_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=DTB3&api_key=", fred_key, "&file_type=json&frequency=m")
+debt_response <- request(debt_url) |> req_perform()
+debt_data <- resp_body_json(debt_response)[["observations"]]
+debt_df <- data.frame(date = sapply(debt_data, function(x) x$date),
+                      debt_return = sapply(debt_data, function(x) as.numeric(x$value)))
+debt_df$date <- as.Date(debt_df$date)
+
+
 # US Equity Market total returns
 # AlphaVantage: TIME_SERIES_DAILY
 # API Request for US Equity Market Returns (SPY)
@@ -184,24 +203,6 @@ acwi_df <- data.frame(date = as.Date(names(acwi_data)),
                       adj_close = sapply(acwi_data, function(x) as.numeric(x[["4. close"]])))
 acwi_df$daily_return <- c(NA, diff(acwi_df$adj_close) / head(acwi_df$adj_close, -1))
 acwi_df <- acwi_df[complete.cases(acwi_df), ]
-
-# Bond market total returns
-# FRED: GS10 (10-Year Treasury Constant Maturity Rate)
-bond_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=GS10&api_key=", fred_key, "&file_type=json&frequency=m")
-bond_response <- request(bond_url) |> req_perform()
-bond_data <- resp_body_json(bond_response)[["observations"]]
-bond_df <- data.frame(date = sapply(bond_data, function(x) x$date),
-                      bond_return = sapply(bond_data, function(x) as.numeric(x$value)))
-bond_df$date <- as.Date(bond_df$date)
-
-# Short-term debt returns7
-# FRED: DTB3 (3-Month Treasury Bill: Secondary Market Rate)
-debt_url <- paste0("https://api.stlouisfed.org/fred/series/observations?series_id=DTB3&api_key=", fred_key, "&file_type=json&frequency=m")
-debt_response <- request(debt_url) |> req_perform()
-debt_data <- resp_body_json(debt_response)[["observations"]]
-debt_df <- data.frame(date = sapply(debt_data, function(x) x$date),
-                      debt_return = sapply(debt_data, function(x) as.numeric(x$value)))
-debt_df$date <- as.Date(debt_df$date)
 
 ```
 
