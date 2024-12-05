@@ -1180,57 +1180,59 @@ cat("Probability of exhaustion: ", prob_exhaustion * 100, "%\n")
 set.seed(123)  # For reproducibility
 n_simulations <- 200
 
-simulate_trs_monthly <- function(n_simulations, initial_salary, years_worked, wage_growth_data, inflation_data) {
+monthly_trs_monte_carlo <- function(n_simulations, initial_salary, years_worked, wage_growth_data, inflation_data) {
   wage_growth_data <- na.omit(wage_growth_data)
   inflation_data <- na.omit(inflation_data)
-  results <- matrix(NA, n_simulations, years_worked * 12) 
-  
+  results <- matrix(NA, n_simulations, years_worked * 12)
+
   for (sim in 1:n_simulations) {
     salary <- initial_salary
     salaries <- numeric(years_worked)
-    retirement_benefit <- numeric(years_worked * 12)  
+    retirement_benefit <- numeric(years_worked * 12) 
     
-    # Calculate salary growth over time
+    # Simulate salary growth over the years
     for (i in 1:years_worked) {
-      growth_rate <- sample(wage_growth_data$wage_growth_percent, 1)  # Sample growth rate from the data
-      inflation_rate <- sample(inflation_data$inflation_rate, 1)  # Sample inflation rate
-      salary <- salary * (1 + growth_rate + inflation_rate)  
-      salaries[i] <- salary  
+      growth_rate <- sample(wage_growth_data$wage_growth_percent, 1) 
+      inflation_rate <- sample(inflation_data$inflation_rate, 1) 
+      salary <- salary * (1 + growth_rate + inflation_rate)
+      salaries[i] <- salary
     }
-    
     final_average_salary <- mean(tail(salaries, 3))
-    
-    # Calculate TRS benefit (monthly payout) based on the FAS
-    trs_benefit <- retirement_benefit_function(years_worked, final_average_salary)
-    current_pension <- trs_benefit
+   
+    # Compute TRS benefit based on FAS
+    trs_benefit_yearly <- retirement_benefit(years_worked, final_average_salary)
+    current_pension <- trs_benefit_yearly / 12
     retirement_benefit[1] <- current_pension
     
-    # Simulate monthly adjustments (based on inflation every September)
+    # Simulate monthly adjustments during retirement (inflation adjustments)
     for (current_month in 2:(years_worked * 12)) {
-      current_year <- ceiling(current_month / 12) 
+      current_year <- ceiling(current_month / 12)
       current_month_in_year <- current_month %% 12
-      if (current_month_in_year == 0) current_month_in_year <- 12  
-      if (current_month_in_year == 9) {  
-        sampled_inflation <- sample(inflation_data$inflation_rate, 12, replace = TRUE) 
+      if (current_month_in_year == 0) current_month_in_year <- 12   
+      
+      # Apply inflation adjustment every September (month 9)
+      if (current_month_in_year == 9) {
+        sampled_inflation <- sample(inflation_data$inflation_rate, 12, replace = TRUE)
         mean_inflation <- mean(sampled_inflation)
-        adjustment <- inflation_adjustment(mean_inflation) 
+        adjustment <- inflation_adjustment(mean_inflation)
         current_pension <- current_pension * (1 + adjustment)
       }
       retirement_benefit[current_month] <- current_pension
     }
-    results[sim, ] <- retirement_benefit 
+    results[sim, ] <- retirement_benefit
   }
-  return(results) 
+  
+  return(results)
 }
-# Example usage
+
 starting_salary <- 50000
 years_worked <- 20
 n_simulations <- 200
 
-monthly_trs_results <- simulate_trs_monte_carlo(n_simulations, starting_salary, years_worked, WAGE, INFLATION)
+monthly_trs_results <- monthly_trs_monte_carlo(n_simulations, starting_salary, years_worked, WAGE, INFLATION)
 
-months <- rep(1:(years_worked * 12), n_simulations)  # Create a vector for the month numbers (1 to years_worked * 12)
-simulations <- rep(1:n_simulations, each = years_worked * 12)  # Create a vector for simulation numbers (1 to n_simulations)
+months <- rep(1:(years_worked * 12), n_simulations)
+simulations <- rep(1:n_simulations, each = years_worked * 12)  
 
 # Create data frame
 trs_monthly_monte_carlo_df <- data.frame(
@@ -1239,6 +1241,7 @@ trs_monthly_monte_carlo_df <- data.frame(
   RetirementBenefit = as.vector(monthly_trs_results)
 )
 ```
+
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
