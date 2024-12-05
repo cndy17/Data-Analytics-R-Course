@@ -57,11 +57,7 @@ Right off the bat, based on the information above, we can compare the two plans 
 -   **TRS**: Provides a **steady, predictable income** for life, which can be helpful for budgeting in retirement.
 -   **ORP**: Your retirement income is **variable** and can increase or decrease depending on the performance of your investments.
 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: View Code
-
-```
+![](images/animation.gif)
 
 # Historical Data
 
