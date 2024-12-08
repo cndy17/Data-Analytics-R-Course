@@ -101,7 +101,7 @@ if (!require("gt")) install.packages("gt")
 if (!require("plotly")) install.packages("plotly")
 if (!require("purrr")) install.packages("purrr")
 if (!require("httr2")) install.packages("httr2")
-if (!require("httr2")) install.packages("gganimate")
+if (!require("gganimate")) install.packages("gganimate")
 
 library(readr)
 library(sf)
