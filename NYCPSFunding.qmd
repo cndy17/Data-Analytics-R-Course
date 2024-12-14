@@ -1,0 +1,1867 @@
+---
+title: "New York City Public Schools Funding & Spending"
+author: "Cindy Li"
+---
+
+# Background
+New York State spent 29,873 dollars per pupil on K-12 education in 2022, more than any other state in the nation and almost double the national average of 15,633 dollars per pupil.[^1] New York City Public Schools are the largest public school system in the United States. The system serves over 1.1 million students in more than 1,800 schools.
+
+[^1]: https://rockinst.org/wp-content/uploads/2024/12/2024-12-Foundation-Aid-Report.pdf 
+
+## NYC School Codes
+A New York City public school's school code is a six-digit number that identifies the school:
+- First two digits: Represent the school district
+
+- Third character: Indicates the borough where the school is located
+
+- Final three digits: Unique within the borough 
+
+The borough codes are:
+
+- M: Manhattan
+
+- X: Bronx
+
+- R: Staten Island
+
+- K: Brooklyn
+
+- Q: Queens
+
+## Foundation Aid
+New York follows the public school funding formula — known as “Foundation Aid”. The goal is to ensure adequate funding for all school districts. Broadly speaking, the Foundation Aid formula multiplies the number of students in a district by the amount of funding needed in that district. The formula estimates the total current-year enrollment and assigns heigher weights to students with disabilities and students enrolled in special education programs. Districts with higher enrollment or more pupils in poverty would see higher Foundation Aid allocations. While, lower poverty districts would see lower Foundation Aid, but not below $500 per pupil.[^2]
+
+[^2]: https://fiscalpolicy.org/understanding-foundation-aid-how-public-school-funding-works-in-new-york-state 
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load Libraries
+if (!require("readr")) install.packages("readr")
+if (!require("sf")) install.packages("sf")
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("tidyr")) install.packages("tidyr")
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("DT")) install.packages("DT")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("gt")) install.packages("gt")
+if (!require("plotly")) install.packages("plotly")
+if (!require("purrr")) install.packages("purrr")
+if (!require("httr2")) install.packages("httr2")
+if (!require("gganimate")) install.packages("gganimate")
+if (!require("rvest")) install.packages("rvest")
+if (!require("readxl")) install.packages("readxl")
+if (!require("scales")) install.packages("scales")
+if (!require("reshape2")) install.packages("reshape2")
+if (!require("viridis")) install.packages("viridis")
+if (!require("corrplot")) install.packages("corrplot")
+if (!require("caret")) install.packages("caret")
+if (!require("ggpmisc")) install.packages("ggpmisc")
+
+library(readr)
+library(sf)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(DT)
+library(ggplot2)
+library(gt)
+library(plotly)
+library(purrr)
+library(httr2)
+library(gganimate)
+library(rvest)
+library(readxl)
+library(scales)
+library(reshape2)
+library(viridis)
+library(corrplot)
+library(caret)
+library(ggpmisc)
+```
+
+### Economically Disadvantaged
+The ECON Status in the data set is marked by the percentage of students who are economically disadvantaged. New York uses reduced-price lunch eligibility as a basis for measuring student poverty. First implemented in 2007, Foundation Aid uses decades-old data to calculate district needs, like relying on figures from the 2000 Census to measure student poverty. Other factors that impact district spending, including the number of students living in temporary housing, don’t weigh into the current formula at all. [^3]
+
+[^3]: https://www.chalkbeat.org/newyork/2024/12/03/nyc-foundation-aid-study-proposes-updates-to-school-funding-formula/ 
+
+# Data Sources
+
+## Academic Performance
+
+**InfoHub Data**
+From the InfoHub site, I am loading the following data files: 
+
+- `GRAD_RATES`
+
+- `DEMOGRAPHICS`
+
+- `REGENTS`
+
+- `REGENTS_CS`
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load InfoHub Data
+# Function to Get Data Files from NYCED URL
+get_nycps_file <- function(fname, sheet){
+  BASE_URL <- "https://infohub.nyced.org/docs/default-source/default-document-library/"
+  fname_ext <- paste0(fname, ".xlsx")
+  if(!file.exists(fname_ext)){
+    FILE_URL <- paste0(BASE_URL, fname_ext)
+    download.file(FILE_URL, 
+                  destfile = fname_ext)
+  }
+  as.data.frame(read_excel(fname_ext, sheet = sheet))
+}
+
+GRAD_RATES <- get_nycps_file("2023-graduation-rates-public-school", "All")
+DEMOGRAPHICS <- get_nycps_file("demographic-snapshot-2019-20-to-2023-24-public", "School")
+REGENTS <- get_nycps_file("2014-15-to-2022-23-nyc-regents-overall-and-by-category---public", "All Students")
+```
+
+To clean the data from, I am converting characters to the numeric data type, replacing 's' with NAs, and calculating averages for graduation rates.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+# Regents & Grad Rates
+# Replace 's' and 'na' with NA for all columns in both datasets
+REGENTS <- REGENTS |> mutate(across(where(is.character), ~ na_if(na_if(., 's'), 'na')))
+REGENTS <- REGENTS |> mutate(across(c(`Mean Score`, `Number Scoring Below 65`, `Percent Scoring Below 65`, 
+                                      `Number Scoring 65 or Above`, `Percent Scoring 65 or Above`,
+                                      `Number Scoring 80 or Above`, `Percent Scoring 80 or Above`,
+                                      `Number meeting CUNY proficiency requirmenets`, 
+                                      `Percent meeting CUNY proficiency requirmenets`), ~ as.numeric(.)))
+REGENTS <- REGENTS |> rename(DBN = `School DBN`)
+GRAD_RATES <- GRAD_RATES |> mutate(across(where(is.character), ~ na_if(na_if(., 's'), 'na')))
+GRAD_RATES <- GRAD_RATES |> mutate(across(c(`# Grads`, `% Grads`, `# Total Regents`, 
+                                      `% Total Regents of Cohort`, `% Total Regents of Grads`,
+                                      `# Advanced Regents`, `% Advanced Regents of Cohort`,
+                                      `% Advanced Regents of Grads`, `# Regents without Advanced`,
+                                      `% Regents without Advanced of Cohort`, `% Regents without Advanced of Grads`,
+                                      `# Local`, `% Local of Cohort`, `% Local of Grads`, `# Still Enrolled`,
+                                      `% Still Enrolled`, `# Dropout`, `% Dropout`), ~ as.numeric(.)))
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+# Calculate the averages for the relevant columns
+grad_rates_avg <- GRAD_RATES |>
+  group_by(DBN, `Cohort Year`) |>
+  summarize( # Group by school and calculate the average for relevant columns
+    avg_total_cohort = mean(`# Total Cohort`, na.rm = TRUE),
+    avg_grads = mean(`# Grads`, na.rm = TRUE),
+    avg_pct_grads = mean(`% Grads`, na.rm = TRUE),
+    avg_total_regents = mean(`# Total Regents`, na.rm = TRUE),
+    avg_pct_regents_cohort = mean(`% Total Regents of Cohort`, na.rm = TRUE),
+    avg_pct_regents_grads = mean(`% Total Regents of Grads`, na.rm = TRUE),
+    avg_advanced_regents = mean(`# Advanced Regents`, na.rm = TRUE),
+    avg_pct_advanced_regents_cohort = mean(`% Advanced Regents of Cohort`, na.rm = TRUE),
+    avg_pct_advanced_regents_grads = mean(`% Advanced Regents of Grads`, na.rm = TRUE),
+    avg_regents_without_advanced = mean(`# Regents without Advanced`, na.rm = TRUE),
+    avg_pct_regents_without_advanced_cohort = mean(`% Regents without Advanced of Cohort`, na.rm = TRUE),
+    avg_pct_regents_without_advanced_grads = mean(`% Regents without Advanced of Grads`, na.rm = TRUE),
+    avg_local = mean(`# Local`, na.rm = TRUE),
+    avg_pct_local_cohort = mean(`% Local of Cohort`, na.rm = TRUE),
+    avg_pct_local_grads = mean(`% Local of Grads`, na.rm = TRUE),
+    avg_still_enrolled = mean(`# Still Enrolled`, na.rm = TRUE),
+    avg_pct_still_enrolled = mean(`% Still Enrolled`, na.rm = TRUE),
+    avg_dropout = mean(`# Dropout`, na.rm = TRUE),
+    avg_pct_dropout = mean(`% Dropout`, na.rm = TRUE)
+  )
+```
+
+**City of New York Data**
+
+- `MATH_06_23_ALL`
+
+- `ELA_06_23_ALL`
+
+- `ECON_MATH_ELA_13_23`
+
+Here I've created a function to pull exam result data from the City of New York. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load InfoHub Data
+# Function to Get City of New York Data Files from cityofnewyork URL
+get_cony_file <- function(fname, zname, FILE_URL) {
+  if(!file.exists(fname)){
+    if(!file.exists(zname)){ 
+      download.file(FILE_URL, destfile = zname) 
+    }
+    td <- tempdir()
+    zip_contents <- unzip(zname, exdir = td)
+    file_path <- file.path(td, fname) 
+  }
+  as.data.frame(read.csv(file_path))
+}
+```
+
+Below, I use the function to download data for ELA scores for 2006-2012 and 2013-2019, ELA scores with Economic status for 2013-2017, ELA scores on a district level for 2006-2011 and 2013-2018.  
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load InfoHub Data
+# define URL and zip file name
+ELA_URL_2006 <- "https://data.cityofnewyork.us/api/views/9uqq-k6t8/files/6cb21873-4c19-42ab-aa31-13573b47ed45?download=true&filename=2006-2012%20ELA%20Test%20Results.zip"
+ELA_2006 <- "2006-2012_ELA_Test_Results.zip" # zip folder name
+# there is no Economic data file in the zip for 2006-2012
+
+ELA_2006_12_ALL <- get_cony_file("2006-2011_English_Language_Arts__ELA__Test_Results_by_Grade_-_School_level_-_All_Students.csv", ELA_2006, ELA_URL_2006)
+
+# ELA 2013-2019
+ELA_URL_2013_19 <- "https://data.cityofnewyork.us/api/views/iebs-5yhr/files/a6ff1ea4-4895-4372-a2d6-bbd0b17e89a4?download=true&filename=2013-2019%20ELA%20Test%20Results.zip"
+ELA_2013_19 <- "2013-2019_ELA_Test_Results.zip" # zip folder name
+ELA_2013_17_ECON <- get_cony_file("2013-2017_School_ELA_Results_-_Economic.csv", ELA_2013_19, ELA_URL_2013_19)
+
+district_ELA_1318 <- get_cony_file("2013-2018_District_ELA_Results.csv", ELA_2013_19, ELA_URL_2013_19)
+district_ELA_0611 <- get_cony_file("2006-2011_English_Language_Arts__ELA__Test_Results_by_Grade_-_District_-_All_Students.csv", ELA_2006, ELA_URL_2006)
+
+
+```
+
+Here, I define a function for ELA scores from 2013-2023. ELA 2013-2023 ALL
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load InfoHub Data
+# ELA 2013-2023 Function
+get_ela_file <- function(fname, zname, sheet, FILE_URL){
+  if(!file.exists(fname)){
+    if(!file.exists(zname)){ 
+      download.file(FILE_URL, destfile = zname, mode = "wb")
+    }
+    td <- tempdir()
+    zip_contents <- unzip(zname, exdir = td) 
+    file_path <- file.path(td, fname)
+  }
+  as.data.frame(read_excel(file_path, sheet = sheet))
+}
+# increase timeout time for zip download
+options(timeout = 1000)
+
+ELA_URL_2013_23 <- "https://data.cityofnewyork.us/api/views/iebs-5yhr/files/33712362-a710-4640-a740-f6dc2c8ac991?download=true&filename=2013-2023%20ELA%20Test%20Results%20(Excel%20files).zip"
+ELA_2013_23 <- "2013-2023_ELA_Test_Results__Excel_files_.zip" # zip folder name
+ELA_2013_23_ALL <- get_ela_file("school-ela-results-2013-2023-(public).xlsx", ELA_2013_23, "All", ELA_URL_2013_23)
+
+```
+
+Next, I'm renaming the columns of `ELA_2006_2012_ALL` so that the column names are consistent across the ELA score data sets. This will help with binding the datasets and my analysis later on. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load InfoHub Data
+# Rename columns
+ELA_2006_12_ALL <- ELA_2006_12_ALL |>
+  rename(
+    `Demographic` = `Category`,              
+    `Num.Level.1` = `Level.1..`,
+    `Pct.Level.1` = `Level.1...1`,
+    `Num.Level.2` = `Level.2..`,
+    `Pct.Level.2` = `Level.2...1`,
+    `Num.Level.3` = `Level.3..`,
+    `Pct.Level.3` = `Level.3...1`,
+    `Num.Level.4` = `Level.4..`,
+    `Pct.Level.4` = `Level.4...1`,
+    `Num.Level.3.and.4` = `Level.3.4..`,
+    `Pct.Level.3.and.4` = `Level.3.4...1`  
+  )
+ELA_2013_23_ALL <- ELA_2013_23_ALL |>
+  rename(
+    `Demographic` = `Category`,              
+    `Number.Tested` = `Number Tested`,
+    `Mean.Scale.Score` = `Mean Scale Score`,
+    `Num.Level.1` = `# Level 1`,
+    `Pct.Level.1` = `% Level 1`,
+    `Num.Level.2` = `# Level 2`,
+    `Pct.Level.2` = `% Level 2`,
+    `Num.Level.3` = `# Level 3`,
+    `Pct.Level.3` = `% Level 3`,
+    `Num.Level.4` = `# Level 4`,
+    `Pct.Level.4` = `% Level 4`,
+    `Num.Level.3.and.4` = `# Level 3+4`,
+    `Pct.Level.3.and.4` = `% Level 3+4`  
+  )  
+```
+
+Additionally, I am ensuring that columns such as the number, percent, and mean are numeric instead of characters. This will introduce NA where the value is 's'. After this, I can bind the ELA 2006-2012 and 2013-2023 data sets together.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+ELA_2013_23_ALL <- ELA_2013_23_ALL |>
+  mutate(across(
+    .cols = starts_with('Num') | starts_with('Pct') | starts_with('Mean'), 
+    .fns = ~ as.numeric(.),        
+    .names = '{.col}'                        
+  )) # introduces NA where value was "s" 
+
+ELA_2006_12_ALL <- ELA_2006_12_ALL |>
+  mutate(`School Name` = NA)
+
+ELA_2006_23_ALL <- bind_rows(
+  ELA_2006_12_ALL,
+  ELA_2013_23_ALL)
+```
+
+Below, I am loading in the Math 2006-2012, Math 2013-2023, and district level Math 2013-2023 data.
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load  Data
+
+# Math 2006 - 2012 download from github link
+get_mathall_file <- function(fname){
+  BASE_URL <- "https://raw.githubusercontent.com/cndy17/STA9750-2024-FALL/main/2006_-_2012__Math_Test_Results__-_All_Students"
+  fname_ext <- paste0(fname, ".csv")
+  if(!file.exists(fname_ext)){
+    FILE_URL <- paste0(BASE_URL, fname_ext)
+    download.file(FILE_URL, 
+                  destfile = fname_ext)
+  }
+  as.data.frame(readr::read_csv(fname_ext, lazy=FALSE))
+}
+
+MATH_2006_12_ALL <- get_mathall_file("2006_-_2012__Math_Test_Results__-_All_Students")
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load InfoHub Data
+# Math 2013- 2023
+get_math1323_file <- function(fname, zname, sheet, FILE_URL){
+  if(!file.exists(fname)){
+    if(!file.exists(zname)){ 
+      download.file(FILE_URL, destfile = zname, mode = "wb")
+    }
+    td <- tempdir()
+    zip_contents <- unzip(zname, exdir = td) 
+    file_path <- file.path(td, fname)
+  }
+  as.data.frame(read_excel(file_path, sheet = sheet))
+}
+MATH_URL_2013_23 <-"https://data.cityofnewyork.us/api/views/74kb-55u9/files/ca3b8584-9b64-472c-ace4-683e795c12e2?download=true&filename=2013-2023%20Math%20Test%20Results%20(Excel%20files).zip"
+MATH_2013_23 <- "2013-2023_Math_Test_Results__Excel_files_.zip"
+MATH_2013_23_ALL <- get_math1323_file("04_school-math-results-2013-2023-(public).xlsx", MATH_2013_23, "All", MATH_URL_2013_23)
+
+
+district_MATH_1323<- get_math1323_file("03_district-math-results-2013-2023-(public).xlsx", MATH_2013_23, "All", MATH_URL_2013_23)
+
+```
+
+To clean the math data, like with the ELA data, I am renaming the columns to ensure consistency across the data sets. I am also binding the Math 2006-2012 and 2013-2023 data sets together and converting to the appropriate data types. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Load InfoHub Data
+# Bind 2006-2012 with 2013-2023
+# Math
+MATH_2006_12_ALL <- MATH_2006_12_ALL |>
+  mutate(`School Name` = NA) # add column to match 2013-23 df
+
+MATH_2013_23_ALL <- MATH_2013_23_ALL |>
+  rename(
+    `Grade` = `Grade`,                 
+    `Demographic` = `Category`,              
+    `Number.Tested` = `Number Tested`,
+    `Mean.Scale.Score` = `Mean Scale Score`,
+    `Num.Level.1` = `# Level 1`,
+    `Pct.Level.1` = `% Level 1`,
+    `Num.Level.2` = `# Level 2`,
+    `Pct.Level.2` = `% Level 2`,
+    `Num.Level.3` = `# Level 3`,
+    `Pct.Level.3` = `% Level 3`,
+    `Num.Level.4` = `# Level 4`,
+    `Pct.Level.4` = `% Level 4`,
+    `Num.Level.3.and.4` = `# Level 3+4`,
+    `Pct.Level.3.and.4` = `% Level 3+4`  
+  )
+
+MATH_2006_23_ALL <- bind_rows(
+  MATH_2006_12_ALL,
+  MATH_2013_23_ALL) # remember School Name is NA from 2006-12
+
+# convert character columns to numeric
+MATH_2006_23_ALL <- MATH_2006_23_ALL |>
+  mutate(across(
+    .cols = starts_with('Num') | starts_with('Pct') | starts_with('Mean'), 
+    .fns = ~ as.numeric(.),        
+    .names = '{.col}'                            
+  ))
+```
+
+Looking through the ELA and Math datasets for all students, I noticed that the `Mean.Scale.Score` for rows where `Grade` is "All Grades" is NA. However, we can find the `Mean.Scale.Score` for "All Grades" manually by calculating the average of the `Mean.Scale.Score` for each `DBN` and `Year`. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# Calculate the averages for the relevant columns (for Math and ELA)
+# For MATH (Calculating means by DBN and Year)
+MATH_06_23_ALL_avg <- MATH_2006_23_ALL |>
+  filter(Grade != 'All Grades') |>
+  group_by(DBN, Year) |>
+  summarise(
+    Pct.Level.1 = mean(`Pct.Level.1`, na.rm = TRUE),
+    Pct.Level.2 = mean(`Pct.Level.2`, na.rm = TRUE),
+    Pct.Level.3 = mean(`Pct.Level.3`, na.rm = TRUE),
+    Mean.Scale.Score = mean(`Mean.Scale.Score`, na.rm = TRUE),
+    Number.Tested = sum(`Number.Tested`, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# Add the "All Grades" row for Math
+MATH_06_23_ALL_with_avg <- bind_rows(MATH_2006_23_ALL, MATH_06_23_ALL_avg) |>
+  mutate(Grade = if_else(Grade == "All Grades", "All Grades", Grade))
+
+# Replace NA values in the "All Grades" row with the computed averages
+MATH_06_23_ALL <- MATH_06_23_ALL_with_avg |>
+  mutate(
+    Pct.Level.1 = ifelse(is.na(Pct.Level.1) & Grade == "All Grades", mean(Pct.Level.1, na.rm = TRUE), Pct.Level.1),
+    Pct.Level.2 = ifelse(is.na(Pct.Level.2) & Grade == "All Grades", mean(Pct.Level.2, na.rm = TRUE), Pct.Level.2),
+    Pct.Level.3 = ifelse(is.na(Pct.Level.3) & Grade == "All Grades", mean(Pct.Level.3, na.rm = TRUE), Pct.Level.3),
+    Mean.Scale.Score = ifelse(is.na(Mean.Scale.Score) & Grade == "All Grades", mean(Mean.Scale.Score, na.rm = TRUE), Mean.Scale.Score),
+    Number.Tested = ifelse(is.na(Number.Tested) & Grade == "All Grades", sum(Number.Tested, na.rm = TRUE), Number.Tested)
+  )
+
+# For ELA (Calculating means by DBN and Year)
+ELA_06_23_ALL_avg <- ELA_2006_23_ALL |>
+  filter(Grade != 'All Grades') |>
+  group_by(DBN, Year) |>
+  summarise(
+    Pct.Level.1 = mean(`Pct.Level.1`, na.rm = TRUE),
+    Pct.Level.2 = mean(`Pct.Level.2`, na.rm = TRUE),
+    Pct.Level.3 = mean(`Pct.Level.3`, na.rm = TRUE),
+    Mean.Scale.Score = mean(`Mean.Scale.Score`, na.rm = TRUE),
+    Number.Tested = sum(`Number.Tested`, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# Add the "All Grades" row for ELA
+ELA_06_23_ALL_with_avg <- bind_rows(ELA_2006_23_ALL, ELA_06_23_ALL_avg) |>
+  mutate(Grade = if_else(Grade == "All Grades", "All Grades", Grade))
+
+# Replace NA values in the "All Grades" row with the computed averages for ELA
+ELA_06_23_ALL<- ELA_06_23_ALL_with_avg |>
+  mutate(
+    Pct.Level.1 = ifelse(is.na(Pct.Level.1) & Grade == "All Grades", mean(Pct.Level.1, na.rm = TRUE), Pct.Level.1),
+    Pct.Level.2 = ifelse(is.na(Pct.Level.2) & Grade == "All Grades", mean(Pct.Level.2, na.rm = TRUE), Pct.Level.2),
+    Pct.Level.3 = ifelse(is.na(Pct.Level.3) & Grade == "All Grades", mean(Pct.Level.3, na.rm = TRUE), Pct.Level.3),
+    Mean.Scale.Score = ifelse(is.na(Mean.Scale.Score) & Grade == "All Grades", mean(Mean.Scale.Score, na.rm = TRUE), Mean.Scale.Score),
+    Number.Tested = ifelse(is.na(Number.Tested) & Grade == "All Grades", sum(Number.Tested, na.rm = TRUE), Number.Tested)
+  )
+
+MATH_06_23_ALL <- MATH_06_23_ALL |>
+  filter(`Grade` == "All Grades")
+
+ELA_06_23_ALL <- ELA_06_23_ALL |>
+  filter(`Grade` == "All Grades")
+```
+
+For the MLA and ELA scores broken down by Economic Status, again, I am downloading the data and renaming the columns to ensure consistency across the data sets. I am also joining the Math and ELA data sets together and converting the columns to the appropriate data types. 
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+ELA_2013_23_ECON <- get_ela_file("school-ela-results-2013-2023-(public).xlsx", ELA_2013_23, "Econ Status", ELA_URL_2013_23)
+MATH_2013_23_ECON <- get_math1323_file("04_school-math-results-2013-2023-(public).xlsx", MATH_2013_23, "Econ Status", MATH_URL_2013_23)
+
+ELA_2013_23_ECON <- ELA_2013_23_ECON |>
+  rename(
+    `Demographic` = `Category`,              
+    `Number.Tested` = `Number Tested`,
+    `Mean.Scale.Score` = `Mean Scale Score`,
+    `Num.Level.1` = `# Level 1`,
+    `Pct.Level.1` = `% Level 1`,
+    `Num.Level.2` = `# Level 2`,
+    `Pct.Level.2` = `% Level 2`,
+    `Num.Level.3` = `# Level 3`,
+    `Pct.Level.3` = `% Level 3`,
+    `Num.Level.4` = `# Level 4`,
+    `Pct.Level.4` = `% Level 4`,
+    `Num.Level.3.and.4` = `# Level 3+4`,
+    `Pct.Level.3.and.4` = `% Level 3+4`  
+  )  
+
+MATH_2013_23_ECON <- MATH_2013_23_ECON |>
+  rename(
+    `Demographic` = `Category`,              
+    `Number.Tested` = `Number Tested`,
+    `Mean.Scale.Score` = `Mean Scale Score`,
+    `Num.Level.1` = `# Level 1`,
+    `Pct.Level.1` = `% Level 1`,
+    `Num.Level.2` = `# Level 2`,
+    `Pct.Level.2` = `% Level 2`,
+    `Num.Level.3` = `# Level 3`,
+    `Pct.Level.3` = `% Level 3`,
+    `Num.Level.4` = `# Level 4`,
+    `Pct.Level.4` = `% Level 4`,
+    `Num.Level.3.and.4` = `# Level 3+4`,
+    `Pct.Level.3.and.4` = `% Level 3+4`  
+  )  
+
+# Full Join Math and ELA results with Economic Demographics
+MATH_ELA_2013_23_ECON <- MATH_2013_23_ECON |>
+  full_join(ELA_2013_23_ECON, by = c("DBN", "Year", "Grade", "Demographic", "School Name"), 
+            suffix = c(".math", ".ela"))
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# Convert character to numeric data type
+MATH_ELA_2013_23_ECON <- MATH_ELA_2013_23_ECON |>
+  mutate(across(
+    .cols = starts_with('Num') | starts_with('Pct') | starts_with('Mean'), 
+    .fns = ~ as.numeric(.),        
+    .names = '{.col}'                         
+  )) # introduces NA where value was "s" 
+
+ECON_MATH_ELA_13_23 <- MATH_ELA_2013_23_ECON |>
+  filter(`Grade` == "All Grades")
+```
+
+ELA and MATH Test Score Distribution By Student Economic Demographic
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# Faceted Math Score Plot by Demographic
+ggplot(ECON_MATH_ELA_13_23, aes(x = `Mean.Scale.Score.math`)) +
+  geom_histogram(binwidth = 5, fill = "lightblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Math Scores by Economic Demographic", x = "Math Score", y = "Frequency") +
+  theme_minimal() +
+  facet_wrap(~ Demographic, scales = "free_y")  # Facet by Demographic with independent y-axis scales
+
+ggplot(ECON_MATH_ELA_13_23, aes(x = `Mean.Scale.Score.ela`)) +
+  geom_histogram(binwidth = 5, fill = "lightcoral", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of ELA Scores by Economic Demographic", x = "ELA Score", y = "Frequency") +
+  theme_minimal() +
+  facet_wrap(~ Demographic, scales = "free_y")
+
+
+```
+
+## School Funding
+**School Funding Transparency Data**
+
+- `funding_C_201823`
+
+NYC publishes School Funding Transparency Data for 2017-2019. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# Downloading School Funding Transparency Data 2017-2019
+get_201719_funds <- function(zname, fname, sheet){
+  BASE_URL <- "https://nycenet.edu/documents/NYS/"
+  zname_ext <- paste0(zname, ".zip")
+  FILE_URL <- paste0(BASE_URL, zname_ext)
+  if(!file.exists(zname_ext)) {
+    download.file(FILE_URL, destfile = zname_ext, mode = "wb")
+  }
+  td <- tempdir()
+  unzip(zname_ext, exdir = td)
+  xlsx_file <- file.path(td, paste0(fname, ".xlsx"))
+  as.data.frame(read_excel(xlsx_file, sheet = sheet))
+  if (!file.exists(xlsx_file)) {
+    unzip(zname_ext, exdir = td)
+  }
+  # Read the specified sheet from the Excel file, skipping the first 5 rows because they are blank and setting the 6th row as the header
+  as.data.frame(read_excel(xlsx_file, sheet = sheet, skip = 6))
+}
+
+# Downloading School Funding Transparency Data 2019-2023
+get_funding_file <- function(zname, fname, sheet){
+  BASE_URL <- "https://infohub.nyced.org/docs/default-source/default-document-library/"
+  zname_ext <- paste0(zname, ".zip")
+  FILE_URL <- paste0(BASE_URL, zname_ext)
+  if(!file.exists(zname_ext)) {
+    download.file(FILE_URL, destfile = zname_ext, mode = "wb")
+  }
+  td <- tempdir()
+  unzip(zname_ext, exdir = td)
+  xlsx_file <- file.path(td, paste0(fname, ".xlsx"))
+  as.data.frame(read_excel(xlsx_file, sheet = sheet))
+  if (!file.exists(xlsx_file)) {
+      unzip(zname_ext, exdir = td)
+    }
+  # Read the specified sheet from the Excel file, skipping the first 5 rows because they are blank and setting the 6th row as the header
+ as.data.frame(read_excel(xlsx_file, sheet = sheet, skip = 6))
+}
+
+# use functions to get data files
+funding_201718_C <- get_201719_funds("NewYorkCitySchoolTransparency201718", "NewYorkCitySchoolTransparency201718 A-E web", "Part-C")
+funding_201819_C <- get_201719_funds("NewYorkCitySchoolTransparency201819", "NewYorkCitySchoolTransparency201819 A-E web", "Part-C")
+funding_201920_C <- get_funding_file("newyorkcityschooltransparency201920", "NewYorkCitySchoolTransparency201920 A-E web", "Part C")
+funding_202021_C <- get_funding_file("newyorkcityschooltransparency202021", "NewYorkCitySchoolTransparency202021 A-E web", "Part C")
+funding_202122_C <- get_funding_file("newyorkcityschooltransparency202122", "NewYorkCitySchoolTransparency202122 A-E web", "Part C")
+funding_202223_C <- get_funding_file("newyorkcityschooltransparency202223", "NewYorkCitySchoolTransparency202223", "Part C")
+
+# combine into one dataset for Part C
+funding_C_201823 <- bind_rows(
+  funding_201718_C |>  mutate(Year = 2018),
+  funding_201819_C |>  mutate(Year = 2019),
+  funding_201920_C |>  mutate(Year = 2020),
+  funding_202021_C |>  mutate(Year = 2021),
+  funding_202122_C |>  mutate(Year = 2022),
+  funding_202223_C |>  mutate(Year = 2023),
+)
+funding_C_201823 <- funding_C_201823 |>
+  rename(DBN = `Local School Code`)
+
+```
+
+**Charter Schools**
+Moving on to charter schools. Charter schools are publicly funded but operate independently. While the range of scores remains similar, charter schools tend to have lower median scores compared to district-run schools. While they need to meet certain performance goals, they receive less per-pupil funding than district schools, which can impact their ability to offer additional resources and support for students. To look at charter school performance, we will use the following datasets:
+
+- `REGENTS_CS`
+
+- `ELA_2013_17_CS`
+
+- `MATH_2013_17_CS`
+
+- `All_CS_combined`
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# list of charter schools: https://www.nysed.gov/charter-schools/charter-schools-directory 
+cs_url <- "https://www.nysed.gov/charter-schools/charter-schools-directory"
+cs <- read_html("https://www.nysed.gov/charter-schools/charter-schools-directory")
+charter_schools <- cs |> 
+  html_elements(".rtecenter:nth-child(1)") 
+charter_schools_text <- charter_schools |>
+  html_text()
+charter_schools_df <- data.frame(
+  school_name = charter_schools_text,
+  stringsAsFactors = FALSE
+)
+
+REGENTS_CS <- REGENTS |> filter(str_detect(`School Name`, 'Charter'))
+```
+
+ELA and Math scores for Charter Schools is available through the City of New York. I will download the data and clean it up using the functions defined previously. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# Load Charter School Data
+ELA_2006_12_CS <- get_cony_file("2006-2012_English_Language_Arts__ELA__Test_Results_-_Charter_Schools.csv", ELA_2006, ELA_URL_2006)
+ELA_2013_17_CS <- get_cony_file("2013-2017_Charter_School_ELA_Results_-_All.csv", ELA_2013_19, ELA_URL_2013_19)
+
+# CharterSchool for 2012-2017
+get_math_file <- function(fname, zname, FILE_URL) {
+  if(!file.exists(fname)){
+    if(!file.exists(zname)){ 
+      download.file(FILE_URL, destfile = zname) 
+    }
+    td <- tempdir()
+    folder_path <- "2006-2012 Math Test Results"
+    zip_contents <- unzip(zname, exdir = td)
+    file_path <- file.path(td, folder_path, fname) 
+  }
+  as.data.frame(read.csv(file_path))
+}
+
+get_math_file_1317 <- function(fname, zname, FILE_URL) {
+  if(!file.exists(fname)){
+    if(!file.exists(zname)){ 
+      download.file(FILE_URL, destfile = zname) 
+    }
+    td <- tempdir()
+    folder_path <- "2013-2017 Math Test Results"
+    zip_contents <- unzip(zname, exdir = td)
+    file_path <- file.path(td, folder_path, fname) 
+  }
+  as.data.frame(read.csv(file_path))
+}
+
+MATH_URL_2006_12 <- "https://data.cityofnewyork.us/api/views/e5c5-ieuv/files/93fd3270-8d2e-47ac-878d-04d96e411168?download=true&filename=2006-2012%20Math%20Test%20Results.zip"
+MATH_2006_12 <- "2006-2012_Math_Test_Results.zip"
+MATH_2006_12_CS <- get_math_file("2006_-_2012_Math_Test_Results_-_Charter_Schools.csv", MATH_2006_12, MATH_URL_2006_12)
+
+MATH_URL_2013_17 <- "https://data.cityofnewyork.us/api/views/74kb-55u9/files/8c17d960-19d2-4c68-b18a-f02c20f3e32e?download=true&filename=2013-2017%20Math%20Test%20Results.zip"
+MATH_2013_17 <- "2013-2017_Math_Test_Results.zip"
+MATH_2013_17_CS <- get_math_file_1317("2013-2017_Charter_School_Math_Results_-_All.csv", MATH_2013_17, MATH_URL_2013_17)
+
+```
+
+To clean the Charter School data, I will rename the columns to ensure consistency across the data sets. I will also convert the columns to the appropriate data types as we did with the other data sets. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# only have CS until 2017
+rename_2013_17_CS <- function(dataframe) {
+  dataframe <- dataframe|>
+  rename(
+    `Demographic` = `Category`,    
+    `Num.Level.1` = `Level1_N`,
+    `Pct.Level.1` = `Level1_.`,
+    `Num.Level.2` = `Level2_N`,
+    `Pct.Level.2` = `Level2_.`,
+    `Num.Level.3` = `Level3_N`,
+    `Pct.Level.3` = `Level3_.`,
+    `Num.Level.4` = `Level4_N`,
+    `Pct.Level.4` = `Level4_.`,
+    `Num.Level.3.and.4` = `Level3.4_N`,
+    `Pct.Level.3.and.4` = `Level3.4_.`  
+  ) 
+  dataframe <- dataframe |>
+    mutate(across(
+      .cols = starts_with('Pct') | starts_with('Num') | starts_with('Mean'), 
+      .fns = ~ as.numeric(.),        
+      .names = '{.col}'                            
+    ))
+  return(dataframe)
+}
+ELA_2013_17_CS <- rename_2013_17_CS(ELA_2013_17_CS)
+MATH_2013_17_CS <- rename_2013_17_CS(MATH_2013_17_CS)
+
+# convert data types
+charter_numeric <- function(dataframe){
+  dataframe <- dataframe |>
+    mutate(across(
+      .cols = starts_with('Pct') | starts_with('Num') | starts_with('Mean'), 
+      .fns = ~ as.numeric(.),        
+      .names = '{.col}'                            
+    ))
+  return(dataframe)
+}
+ELA_2006_12_CS <- charter_numeric(ELA_2006_12_CS)
+
+```
+
+Here, I combine the separate years of charter school data sets for ELA and Math. I then assign a `Subject` column to then combine Math and ELA scores for charter schools into one dataframe. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+ELA_2006_12_CS <- ELA_2006_12_CS |> mutate(`School.Name` = NA)
+ELA_combined <- rbind(ELA_2006_12_CS, ELA_2013_17_CS)
+
+# Combine the datasets into one for Math
+MATH_2006_12_CS <- MATH_2006_12_CS |> mutate(`School.Name` = NA)
+MATH_combined <- rbind(MATH_2006_12_CS, MATH_2013_17_CS)
+
+ELA_combined <- ELA_combined  |> mutate(across(c(`Mean.Scale.Score`, `Num.Level.1`, `Pct.Level.1`, 
+                                      `Num.Level.2`, `Pct.Level.2`, `Num.Level.3`, `Pct.Level.3`, `Num.Level.4`, `Pct.Level.4`, `Num.Level.3.and.4`, `Pct.Level.3.and.4`), ~ as.numeric(.)))
+
+MATH_combined <- MATH_combined  |> mutate(across(c(`Mean.Scale.Score`, `Num.Level.1`, `Pct.Level.1`, 
+                                      `Num.Level.2`, `Pct.Level.2`, `Num.Level.3`, `Pct.Level.3`, `Num.Level.4`, `Pct.Level.4`, `Num.Level.3.and.4`, `Pct.Level.3.and.4`), ~ as.numeric(.)))
+
+
+# For MATH (Calculating means by DBN and Year)
+MATH_combined_avg <- MATH_combined |>
+  filter(Grade != 'All Grades') |>
+  group_by(DBN, Year) |>
+  summarise(
+    Pct.Level.1 = mean(`Pct.Level.1`, na.rm = TRUE),
+    Pct.Level.2 = mean(`Pct.Level.2`, na.rm = TRUE),
+    Pct.Level.3 = mean(`Pct.Level.3`, na.rm = TRUE),
+    Mean.Scale.Score = mean(`Mean.Scale.Score`, na.rm = TRUE),
+    Number.Tested = sum(`Number.Tested`, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# For ELA (Calculating means by DBN and Year)
+ELA_combined_avg <- ELA_combined |>
+  filter(Grade != 'All Grades') |>
+  group_by(DBN, Year) |>
+  summarise(
+    Pct.Level.1 = mean(`Pct.Level.1`, na.rm = TRUE),
+    Pct.Level.2 = mean(`Pct.Level.2`, na.rm = TRUE),
+    Pct.Level.3 = mean(`Pct.Level.3`, na.rm = TRUE),
+    Mean.Scale.Score = mean(`Mean.Scale.Score`, na.rm = TRUE),
+    Number.Tested = sum(`Number.Tested`, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+ELA_combined_avg$Subject <- "ELA"
+MATH_combined_avg$Subject <- "Math"
+
+CS_200617_data <- rbind(ELA_combined_avg, MATH_combined_avg) 
+CS_200617_data$isCharterSchool <- "Yes"
+
+ELA_06_23_ALL_cs <- ELA_06_23_ALL_avg |> mutate(`Subject` = "ELA", `isCharterSchool` = "No")
+MATH_06_23_ALL_cs <- MATH_06_23_ALL_avg |>mutate(`Subject` = "Math", `isCharterSchool` = "No")
+
+All_CS_combined <- 
+  rbind(CS_200617_data, ELA_06_23_ALL_cs, MATH_06_23_ALL_cs) 
+
+```
+
+## School Expenditures
+The NYC Public School site publishes School Based Expenditure Reports for the years 2017 and 2018. I will scrape the data from the site and combine the two years into one dataset. 
+
+- `expenditure_201718`
+
+- `expenditure_201617`
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# Function to scrape funding data for a given year
+scrape_exp_data <- function(year) {
+  url <- paste0("https://www.nycenet.edu/offices/d_chanc_oper/budget/dbor/sber/FY", year, "/FY", year, "_District_Overview.aspx")
+  h <- read_html(url)
+  table <- h |>
+    html_node('table') |>   
+    html_table() |>
+    mutate(Year = year)
+  colnames(table) <- table[2, ]  # Set second row as the column names
+  table <- table[-c(1, 2), ]   # Remove the first two rows (header and the one before it)
+  as.data.frame(table)
+}
+
+# Scrape data for 2016-2018
+# Citywide Summary for the School COunt and Title I Count
+# Per Capita Calculation for Dollars, Enrollment, Per Capita
+expenditure_201718 <- scrape_exp_data(2018)
+expenditure_201617 <- scrape_exp_data(2017)
+
+# Combine expenditure reports
+expenditure_201718 <- expenditure_201718 |> rename(`Year` = `2018`)
+expenditure_201617 <- expenditure_201617 |> rename(`Year` = `2017`)
+
+expenditure_201618 <- bind_rows(expenditure_201718,
+                                expenditure_201617)
+```
+
+## District Specific Data
+To perform district level analysis, I will use the following datasets:
+
+- `district_MATH_2006_12`
+
+- `district_ELA_2006_12`
+
+- `district_spending_0412`
+
+The New York Fed website has school funding data by district and borough for 2004 - 2012. I will pair that with Math and ELA scores by district for 2006 - 2012 from the City of New York.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+FILE_URL = "https://www.newyorkfed.org/medialibrary/interactives/nyc-school-spending/nyc-school-spending/downloads/csd_expend.xlsx?v=1.0.0"
+fname <- "csd_expend.xlsx"
+  if(!file.exists(fname)){
+    download.file(FILE_URL, 
+                  destfile = fname)
+  }
+district_spending_0412 <- as.data.frame(read_excel(fname, sheet = "Sheet1"))
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+district_ELA_2006_12 <- get_cony_file("2006-2012_English_Language_Arts__ELA__Test_Results_-_District_-_All_Students.csv", ELA_2006, ELA_URL_2006)
+district_ELA_2006_12 <- district_ELA_2006_12 |>
+  filter(`Grade` == 'All Grades')
+
+district_MATH_2006_12 <- get_math_file("2006_-_2012__Math_Test_Results_-_District_-_All_Students.csv", MATH_2006_12, MATH_URL_2006_12)
+district_MATH_2006_12 <- district_MATH_2006_12 |>
+  filter(`Grade` == 'All Grades')
+```
+
+## NYC Shapefiles
+To visualize the data, I am using a NYC shapefile downloaded from NYC Gov and reading it into an `sf` object. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+library(ggplot2)
+library(sf)
+
+if(!file.exists("nysd_24d.zip")){
+    download.file("https://s-media.nyc.gov/agencies/dcp/assets/files/zip/data-tools/bytes/nysd_24d.zip", 
+              destfile="nysd_24d.zip")
+}
+
+td <- tempdir(); 
+zip_contents <- unzip("nysd_24d.zip", 
+                      exdir = td)
+    
+fname_shp <- zip_contents[grepl("shp$", zip_contents)]
+nyc_sf <- read_sf(fname_shp)
+```
+
+# Initial Overview
+## Academic Performance
+Summary Statistics for Academic Performance Metrics
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+#| layout-ncol: 3
+
+grad_rates_summary <- GRAD_RATES |>
+  summarise(
+    Mean_Graduation_Rate = mean(`% Grads`, na.rm = TRUE),
+    Median_Graduation_Rate = median(`% Grads`, na.rm = TRUE),
+    SD_Graduation_Rate = sd(`% Grads`, na.rm = TRUE),
+    Min_Graduation_Rate = min(`% Grads`, na.rm = TRUE),
+    Max_Graduation_Rate = max(`% Grads`, na.rm = TRUE),
+    Mean_Advanced_Regents = mean(`% Advanced Regents of Cohort`, na.rm = TRUE),
+    Median_Advanced_Regents = median(`% Advanced Regents of Cohort`, na.rm = TRUE),
+    SD_Advanced_Regents = sd(`% Advanced Regents of Cohort`, na.rm = TRUE),
+    Min_Advanced_Regents = min(`% Advanced Regents of Cohort`, na.rm = TRUE),
+    Max_Advanced_Regents = max(`% Advanced Regents of Cohort`, na.rm = TRUE)
+  )
+regents_summary <- REGENTS |>
+  summarise(
+    Mean_Score = mean(`Mean Score`, na.rm = TRUE),
+    Median_Score = median(`Mean Score`, na.rm = TRUE),
+    SD_Score = sd(`Mean Score`, na.rm = TRUE),
+    Min_Score = min(`Mean Score`, na.rm = TRUE),
+    Max_Score = max(`Mean Score`, na.rm = TRUE)
+  )
+regents_cs_summary <- REGENTS_CS |>
+  summarise(
+    Mean_Score = mean(`Mean Score`, na.rm = TRUE),
+    Median_Score = median(`Mean Score`, na.rm = TRUE),
+    SD_Score = sd(`Mean Score`, na.rm = TRUE),
+    Min_Score = min(`Mean Score`, na.rm = TRUE),
+    Max_Score = max(`Mean Score`, na.rm = TRUE)
+  )
+math_ela_summary <- MATH_ELA_2013_23_ECON |>
+  summarise(
+    Mean_Math_Score = mean(`Mean.Scale.Score.math`, na.rm = TRUE),
+    Median_Math_Score = median(`Mean.Scale.Score.math`, na.rm = TRUE),
+    SD_Math_Score = sd(`Mean.Scale.Score.math`, na.rm = TRUE),
+    Min_Math_Score = min(`Mean.Scale.Score.math`, na.rm = TRUE),
+    Max_Math_Score = max(`Mean.Scale.Score.math`, na.rm = TRUE),
+    
+    Mean_ELA_Score = mean(`Mean.Scale.Score.ela`, na.rm = TRUE),
+    Median_ELA_Score = median(`Mean.Scale.Score.ela`, na.rm = TRUE),
+    SD_ELA_Score = sd(`Mean.Scale.Score.ela`, na.rm = TRUE),
+    Min_ELA_Score = min(`Mean.Scale.Score.ela`, na.rm = TRUE),
+    Max_ELA_Score = max(`Mean.Scale.Score.ela`, na.rm = TRUE)
+  )
+
+# Display GRAD_RATES summary using GT
+grad_rates_summary |>
+  pivot_longer(cols = everything(), names_to = "Statistic", values_to = "Value") |>  # Reshape to long format
+  gt() |>
+  tab_header(
+    title = "Summary Statistics for Graduation Rates"
+  ) |>
+  cols_label(
+    Statistic = "Statistic",
+    Value = "Value"
+  ) |>
+  tab_spanner(
+    label = "Graduation Rates",
+    columns = c(Statistic, Value)
+  )
+
+# Display REGENTS summary using GT
+regents_summary |>
+  pivot_longer(cols = everything(), names_to = "Statistic", values_to = "Value") |>  # Reshape to long format
+  gt() |>
+  tab_header(
+    title = "Summary Statistics for REGENTS"
+  ) |>
+  cols_label(
+    Statistic = "Statistic",
+    Value = "Value"
+  ) |>
+  tab_spanner(
+    label = "Regents Exam Stats",
+    columns = c(Statistic, Value)
+  )
+
+# Display REGENTS_CS summary using GT
+regents_cs_summary |>
+  pivot_longer(cols = everything(), names_to = "Statistic", values_to = "Value") |>  # Reshape to long format
+  gt() |>
+  tab_header(
+    title = "Summary Statistics for REGENTS_CS"
+  ) |>
+  cols_label(
+    Statistic = "Statistic",
+    Value = "Value"
+  ) |>
+  tab_spanner(
+    label = "Regents Exam Stats (CS)",
+    columns = c(Statistic, Value)
+  )
+
+# Display MATH_ELA_2013_23_ECON summary using GT
+math_ela_summary |>
+  pivot_longer(cols = everything(), names_to = "Statistic", values_to = "Value") |>  # Reshape to long format
+  gt() |>
+  tab_header(
+    title = "Summary Statistics for Math & ELA Scores"
+  ) |>
+  cols_label(
+    Statistic = "Statistic",
+    Value = "Value"
+  ) |>
+  tab_spanner(
+    label = "Math & ELA Scores",
+    columns = c(Statistic, Value)
+  )
+
+```
+
+# Funding
+Overall, NYC has seen an increase in funding over the years. New York City Public Schools receive funding from three sources: State aid, local resources, and Federal aid. The majority of funding comes from State and Local sources. 
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+funding_source_totals <- funding_C_201823 |>
+  select(`School Name`, `DBN`, `Year`,
+         State_And_Local_Funding_per_Pupil = `State & Local\r\nFunding per Pupil`, 
+         Federal_Funding_per_Pupil = `Federal Funding \r\nper Pupil`) |>
+  pivot_longer(cols = c(State_And_Local_Funding_per_Pupil, Federal_Funding_per_Pupil),
+               names_to = "Funding_Type",
+               values_to = "Amount") |>
+  group_by(`DBN`, `Year`) |>
+  mutate(
+    total_funding = sum(Amount, na.rm = TRUE),  
+    Percentage = Amount / total_funding * 100
+  ) |>
+  select(`DBN`,`School Name`, Funding_Type, Percentage)
+
+funding_source_avg <- funding_source_totals |>
+  group_by(Funding_Type) |>
+  summarise(mean_percentage = mean(Percentage, na.rm = TRUE)) |>
+  ungroup()
+
+# Plotting the funding data source
+ggplot(funding_source_avg, aes(x = Funding_Type, y = mean_percentage, fill = Funding_Type)) +
+  geom_bar(stat = "identity", position = "stack", width = .8) +
+  scale_fill_manual(values = c("State_And_Local_Funding_per_Pupil" = "lightblue", 
+                               "Federal_Funding_per_Pupil" = "darkblue")) +
+  labs(
+    title = "State & Local vs Federal Funding per Pupil (%)",
+    x = "School",
+    y = "Percentage of Total Funding",
+    fill = "Funding Type"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "bottom")
+
+``` 
+
+Total Funding per Pupil Has Increased Overtime
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+funding_C_201823 |>
+  filter(!is.na(`Total School Funding per Pupil`)) |>
+  group_by(Year) |>
+  mutate(`Total School Funding per Pupil per Year` = sum(`Total School Funding per Pupil`, na.rm = TRUE)) |>
+  ggplot(aes(x = Year, y = `Total School Funding per Pupil per Year`)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Total School Funding per Pupil Over Time", x = "Year", y = "Total Funding per Pupil") +
+  scale_y_continuous(labels = scales::comma) +  # Prevent scientific notation and add commas
+  theme_minimal()
+```
+
+**Fair Student Funding**
+Fair Student Funding (FSF) makes up about two-thirds of most K-12 NYCPS school budgets. Other funding sources include federal funding streams, such as:
+
+- Title I: for high percentages of students from low-income families
+
+- Title III: for English Language Learners/Limited English Proficient students, special education funding for Individuals with Disabilities Education Act, or other targeted allocations for specific initiatives. 
+
+Charter schools and Mandated Individual Education Plan services for speech teachers, occupational therapists, and 1:1 professionals are funded separately. Which is why we have we do not see charter schools in our funding data.
+
+Broadly speaking, FSF is the formula used to distribute funding to districts and is determined based on three key factors:
+
+1. Number of Students Enrolled 
+
+2. Student Needs 
+
+3. a minimum funding amount of $500 per student
+
+Student needs are “weighted” based on the cost of meeting a student's educational need so that schools get more money for students with greater needs. This means that in districts with higher enrollment or more students living in poverty, Foundation Aid will be higher. Districts with higher overall incomes will see lower funding, but never below $500 per student. Determining and measuring student needs is a complex process. The NYC Department of Education uses a weighted formula to determine the needs of students. 
+
+**Fair Student Funding Weights**
+The NYC Department of Education shares details its method to determine the needs of students as such[^10]:
+Academic Intervention:
+
+- Poverty for schools beginning before 4th grade. 
+
+- Lower student achievement where incoming test scores predict academic need.
+
+- Over-Age Under-Credited ‘Over The Counter’ (OTC) status.
+
+English Language Learner status, based on:
+
+- Students in English as a New Language (ENL) and Bilingual programs.
+
+- Students with interrupted formal education (SIFE).
+
+Special Education, based on:
+- Students with special instruction through Individualized Education Programs (IEPs).
+
+- The number of special education periods mandated per week and the intensity of those services.
+
+Students in Temporary Housing, based on:
+
+- Families reported living in Doubled Up, Shelter, Hotel/Motel, or Other Temporary Living Situation on the Housing Questionnaire.
+
+Concentration of Needs, based on:
+- Schools with the highest needs
+
+High schools also have additional weights: 
+Career and Technical Education (CTE) Designated High Schools: 
+
+- High Schools in which all students are engaged in NYC DOE-approved CTE programs of study
+
+Specialized Academic: 
+
+- Supplementary instruction and assessments, including higher course/credit loads and AP courses.
+
+Specialized Audition: 
+
+- All students within the school participate are admitted through a screening process that involves a performance audition or a portfolio review. Students receive the Arts Endorsed Diploma.
+
+Transfer: 
+
+- Small high schools designed to re-engage students who have dropped out or are over-age and under-credited for their grade.
+
+![](images/FSFWeightsWork.png)
+
+[^10]: https://www.schools.nyc.gov/about-us/funding/funding-our-schools/fair-student-funding-fsf 
+
+**Distribution of Total School Funding per Pupil**
+A long tail distribution of total school funding per pupil is observed. The figure below demonstrates that some schools have significantly higher funding per pupil amounts compared to the majority of schools.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+ggplot(funding_C_201823, aes(x = `Total School Funding per Pupil`)) +
+  geom_histogram(binwidth = 1000, fill = "black", color = "lightblue", alpha = 0.7) +
+  labs(title = "Distribution of Total School Funding per Pupil", 
+       x = "Total School Funding per Pupil", y = "Frequency") +
+  scale_x_continuous(labels = scales::comma_format()) + 
+  theme_minimal()
+
+```
+
+**Schools with the Most Funding**
+Number one is [Home Instruction](https://www.homeinstructionschools.com/), a District 75 school located in the Bronx. District 75 is a special education district that serves students with significant challenges. Home Instruction provides K-12 educational services for students who are unable to attend school due to orthopedic, non-orthopedic/medical, or psychiatric reasons. At number two, we see Hospital Schools, which is also a District 75 school. As the name suggests, it is a special program to meet the educational needs of hospitalized children. Passages Academy from the table below provides education, as well as counseling services, for court-involved students who are detained. P255Q is a District 75 school for students with Autism Spectrum Disorders. 
+
+These statistics align with the idea that schools with higher funding per pupil are those that serve students with greater needs. All of the top funded schools are a part of District 75, which provides specialized educational support for students with significant challenges, such as:[^11]
+
+- Autism Spectrum Disorders
+
+- Significant cognitive delays
+
+- Emotional disabilities
+
+- Sensory impairments
+
+- Multiple disabilities
+
+[^11]: https://www.schools.nyc.gov/learning/special-education/school-settings/district-75
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+avg_funding_per_school <- funding_C_201823 |>
+  group_by(`School Name`) |>
+  summarize(`Average Funding` = mean(`Total School Funding per Pupil`, na.rm = TRUE))|>
+  arrange(desc(`Average Funding`)) 
+
+top_funding_table <- avg_funding_per_school |>
+  head(10) |>  
+  gt() |>  
+  tab_header(
+    title = "Top 10 Schools with Highest Average Total Funding per Pupil"
+  ) |> 
+  cols_label(
+    `School Name` = "School Name",
+    `Average Funding` = "Average Funding per Pupil"
+  ) |> 
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(columns = vars(`School Name`, `Average Funding`))
+  ) |> 
+  tab_style(
+    style = cell_borders(sides = "bottom", weight = px(2)),
+    locations = cells_body(columns = vars(`School Name`, `Average Funding`))
+  )
+
+top_funding_table
+
+```
+
+## Funding Allocation
+**Classroom Teacher Salary Allocation**
+For most schools, the majority of their funding allocation is for classroom teachers.
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+teacher_salary <-  funding_C_201823 |> 
+  rename(Classroom_Teachers = `Classroom Teachers`) |>
+  filter(!is.na(Classroom_Teachers)) |>
+  group_by(Year) |>
+  summarise(Mean_Classroom_Teachers = mean(Classroom_Teachers)) |>
+  select(Year, Mean_Classroom_Teachers)
+
+ggplot(teacher_salary, aes(x = Year, y = Mean_Classroom_Teachers)) +
+  geom_line(color = "royalblue", size = 1) +  
+  geom_point(color = "royalblue", size = 2) +   
+  labs(title = "Mean Total Allocation to Classroom Teacher Salary Across Schools Over Time", x = "Year", y = "Mean Total Allocation($)") +
+  scale_y_continuous(labels = scales::comma) +  # Format y-axis without scientific notation
+  theme_minimal()
+```
+Here we see that increasing funding for classroom teachers can boost student performance, but only up to a certain point.
+
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# Calculate percentage of each spending category relative to total funding
+funding_spending <- funding_C_201823 |>
+  mutate(
+    pct_classroom_teachers = `Classroom Teachers` / `Total Allocation by Purpose` * 100,
+    pct_all_other_salaries = `All Other Salaries` / `Total Allocation by Purpose` * 100,
+    pct_employee_benefits = `Employee Benefits` / `Total Allocation by Purpose` * 100
+  )
+```
+
+have limited funding data to match the academic performance
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+funding_spending <- funding_C_201823 |>
+  mutate(
+    pct_classroom_teachers = `Classroom Teachers` / `Total Allocation by Purpose` * 100,
+    pct_all_other_salaries = `All Other Salaries` / `Total Allocation by Purpose` * 100,
+    pct_employee_benefits = `Employee Benefits` / `Total Allocation by Purpose` * 100
+  )
+# Join Math and ELA data
+MATH_ELA_06_23 <- MATH_06_23_ALL |>
+  left_join(ELA_06_23_ALL, by = c("DBN", "Year"), suffix = c(".math", ".ela"))
+
+# Merge funding data with academic performance data 
+funding_performance_df <- MATH_ELA_06_23 |>
+  left_join(funding_spending, by = c("DBN", "Year"))
+
+# Select relevant columns
+funding_performance_select <- funding_performance_df |>
+  select(
+    DBN, 
+    Year,
+    Classroom_Teachers = `Classroom Teachers`, 
+    All_Other_Salaries = `All Other Salaries`,
+    Employee_Benefits = `Employee Benefits`,
+    BOCES_Services = `BOCES Services`,
+    All_Other = `All Other`,
+    School_Administration = `School Administration`,
+    Instructional_Media = `Instructional Media`,
+    Pupil_Support_Services = `Pupil\r\nSupport\r\nServices`,
+    State_Local_Funding = `State & Local Funding`,
+    Federal_Funding = `Federal \r\nFunding`,
+    Total_Funding_per_Pupil = `Total School Funding per Pupil`,
+    Mean_Scale_Score_Math = `Mean.Scale.Score.math`,  # Math performance
+    Mean_Scale_Score_ELA = `Mean.Scale.Score.ela`   # ELA performance
+  )
+funding_performance_filterNA <- funding_performance_select |>
+  drop_na(Classroom_Teachers, All_Other_Salaries, Employee_Benefits, BOCES_Services, All_Other,
+         Mean_Scale_Score_Math, Mean_Scale_Score_ELA)
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+#| layout-ncol: 2
+
+# Function to compute and display the R-squared value for the polynomial model
+add_r_squared <- function(model) {
+  rsq <- summary(model)$r.squared
+  return(paste("R^2: ", round(rsq, 3)))
+}
+
+# Scatter plot for Classroom_Teachers vs. Mean Scale Score (ELA) with polynomial regression and R² label
+ggplot(funding_performance_filterNA, aes(x = Classroom_Teachers, y = Mean_Scale_Score_ELA)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue", se = FALSE) +
+  labs(title = "Classroom Teachers Funding vs. Mean Scale Score (ELA)", 
+       x = "Classroom Teachers Funding", y = "Mean Scale Score (ELA)") +
+  scale_x_continuous(labels = comma_format()) + 
+  theme_minimal() +
+  annotate("text", 
+           x = max(funding_performance_filterNA$Classroom_Teachers) * 0.95, 
+           y = max(funding_performance_filterNA$Mean_Scale_Score_ELA) * 0.95, 
+           label = add_r_squared(lm(Mean_Scale_Score_ELA ~ poly(Classroom_Teachers, 3), data = funding_performance_filterNA)), 
+           color = "blue", size = 3, hjust = 1, vjust = 1)
+
+# Scatter plot for Classroom_Teachers vs. Mean Scale Score (Math) with polynomial regression and R² label
+ggplot(funding_performance_filterNA, aes(x = Classroom_Teachers, y = Mean_Scale_Score_Math)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue", se = FALSE) +
+  labs(title = "Classroom Teachers Funding vs. Mean Scale Score (Math)", 
+       x = "Classroom Teachers Funding", y = "Mean Scale Score (Math)") +
+  scale_x_continuous(labels = comma_format()) + 
+  theme_minimal() +
+  annotate("text", 
+           x = max(funding_performance_filterNA$Classroom_Teachers) * 0.95, 
+           y = max(funding_performance_filterNA$Mean_Scale_Score_Math) * 0.95, 
+           label = add_r_squared(lm(Mean_Scale_Score_Math ~ poly(Classroom_Teachers, 3), data = funding_performance_filterNA)), 
+           color = "blue", size = 3, hjust = 1, vjust = 1)
+
+```
+
+## Funding Correlations
+Looking at the correlation matrix, we can see the relationships between different funding sources and academic performance metrics. Total Funding per Pupil has weak negative correlations with performance scores, which could imply that schools with more funding per pupil do not necessarily have better performance outcomes. This does makes sense as more funding is actually allocated based student need determined by performance lags. On the flip side, it seems that there are weak positive correlations between Classroom Teacher funding with Mean_Scale_Score_Math (0.155) and Mean_Scale_Score_ELA (0.133). Both Instructional_Media and Pupil_Support_Services also have weak correlations with both Mean_Scale_Score_Math and Mean_Scale_Score_ELA. The weak correlations between funding categories (Classroom Teachers, All Other Salaries, Employee Benefits, etc.) with Mean_Scale_Score_Math and Mean_Scale_Score_ELA suggests that funding allocations may not directly influence student performance in these areas. Rather than driving academic performance, funding is more so being used to bring equity to the education system. 
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+funding_spending <- funding_C_201823 |>
+  mutate(
+    pct_classroom_teachers = `Classroom Teachers` / `Total Allocation by Purpose` * 100,
+    pct_all_other_salaries = `All Other Salaries` / `Total Allocation by Purpose` * 100,
+    pct_employee_benefits = `Employee Benefits` / `Total Allocation by Purpose` * 100
+  )
+# Join Math and ELA data
+MATH_ELA_06_23 <- MATH_06_23_ALL |>
+  left_join(ELA_06_23_ALL, by = c("DBN", "Year"), suffix = c(".math", ".ela"))
+
+# Merge funding data with academic performance data 
+funding_performance_df <- MATH_ELA_06_23 |>
+  left_join(funding_spending, by = c("DBN", "Year"))
+
+# Select relevant columns
+funding_performance_select <- funding_performance_df |>
+  select(
+    DBN, 
+    Year,
+    Classroom_Teachers = `Classroom Teachers`, 
+    All_Other_Salaries = `All Other Salaries`,
+    Employee_Benefits = `Employee Benefits`,
+    BOCES_Services = `BOCES Services`,
+    All_Other = `All Other`,
+    School_Administration = `School Administration`,
+    Instructional_Media = `Instructional Media`,
+    Pupil_Support_Services = `Pupil\r\nSupport\r\nServices`,
+    State_Local_Funding = `State & Local Funding`,
+    Federal_Funding = `Federal \r\nFunding`,
+    Total_Funding_per_Pupil = `Total School Funding per Pupil`,
+    Mean_Scale_Score_Math = `Mean.Scale.Score.math`,  # Math performance
+    Mean_Scale_Score_ELA = `Mean.Scale.Score.ela`   # ELA performance
+  )
+funding_performance_filterNA <- funding_performance_select |>
+  drop_na(Classroom_Teachers, All_Other_Salaries, Employee_Benefits, BOCES_Services, All_Other,
+         Mean_Scale_Score_Math, Mean_Scale_Score_ELA)
+
+correlation_matrix <- funding_performance_filterNA |>
+  select(
+    Classroom_Teachers,
+    All_Other_Salaries,
+    Employee_Benefits,
+    BOCES_Services,
+    All_Other,
+    School_Administration,
+    Instructional_Media,
+    Pupil_Support_Services,
+    State_Local_Funding,
+    Federal_Funding,
+    Total_Funding_per_Pupil,
+    Mean_Scale_Score_Math,
+    Mean_Scale_Score_ELA
+  ) |>
+  cor(use = "complete.obs") 
+
+correlation_matrix_melted <- melt(correlation_matrix)
+
+# Plot the correlation heatmap
+ggplot(correlation_matrix_melted, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0, limit = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Correlation between Funding and Performance Metrics",
+       x = "Variables",
+       y = "Variables",
+       fill = "Correlation") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+#| layout-ncol: 2
+
+# Function to compute and display the R-squared value for the polynomial model
+add_r_squared <- function(model) {
+  rsq <- summary(model)$r.squared
+  return(paste("R^2: ", round(rsq, 3)))
+}
+
+# Scatter plot for All_Other_Salaries vs. Mean Scale Score (ELA) with polynomial regression and R² label
+ggplot(funding_performance_filterNA, aes(x = All_Other_Salaries, y = Mean_Scale_Score_ELA)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue", se = FALSE) +
+  labs(title = "All Other Salaries Funding vs. Mean Scale Score (ELA)", 
+       x = "All Other Salaries Funding", y = "Mean Scale Score (ELA)") +
+  scale_x_continuous(labels = comma_format()) + 
+  theme_minimal() +
+  annotate("text", 
+           x = max(funding_performance_filterNA$All_Other_Salaries) * 0.95, # position on x-axis (slightly left from max)
+           y = max(funding_performance_filterNA$Mean_Scale_Score_ELA) * 0.95, # position on y-axis (slightly down from max)
+           label = add_r_squared(lm(Mean_Scale_Score_ELA ~ poly(All_Other_Salaries, 2), data = funding_performance_filterNA)), 
+           color = "blue", size = 3, hjust = 1, vjust = 1)
+
+# Scatter plot for Employee_Benefits vs. Mean Scale Score (ELA) with polynomial regression and R² label
+ggplot(funding_performance_filterNA, aes(x = Employee_Benefits, y = Mean_Scale_Score_ELA)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue", se = FALSE) +
+  labs(title = "Employee Benefits Funding vs. Mean Scale Score (ELA)", 
+       x = "Employee Benefits Funding", y = "Mean Scale Score (ELA)") +
+  scale_x_continuous(labels = comma_format()) + 
+  theme_minimal() +
+  annotate("text", 
+           x = max(funding_performance_filterNA$Employee_Benefits) * 0.95, 
+           y = max(funding_performance_filterNA$Mean_Scale_Score_ELA) * 0.95, 
+           label = add_r_squared(lm(Mean_Scale_Score_ELA ~ poly(Employee_Benefits, 3), data = funding_performance_filterNA)), 
+           color = "blue", size = 3, hjust = 1, vjust = 1)
+
+# Scatter plot for All_Other vs. Mean Scale Score (ELA) with polynomial regression and R² label
+ggplot(funding_performance_filterNA, aes(x = All_Other, y = Mean_Scale_Score_ELA)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue", se = FALSE) +
+  labs(title = "All Other Funding vs. Mean Scale Score (ELA)", 
+       x = "All Other Funding", y = "Mean Scale Score (ELA)") +
+  scale_x_continuous(labels = comma_format()) + 
+  theme_minimal() +
+  annotate("text", 
+           x = max(funding_performance_filterNA$All_Other) * 0.95, 
+           y = max(funding_performance_filterNA$Mean_Scale_Score_ELA) * 0.95, 
+           label = add_r_squared(lm(Mean_Scale_Score_ELA ~ poly(All_Other, 3), data = funding_performance_filterNA)), 
+           color = "blue", size = 3, hjust = 1, vjust = 1)
+
+# Scatter plot for All_Other_Salaries vs. Mean Scale Score (Math) with polynomial regression and R² label
+ggplot(funding_performance_filterNA, aes(x = All_Other_Salaries, y = Mean_Scale_Score_Math)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue", se = FALSE) +
+  labs(title = "All Other Salaries Funding vs. Mean Scale Score (Math)", 
+       x = "All Other Salaries Funding", y = "Mean Scale Score (Math)") +
+  scale_x_continuous(labels = comma_format()) + 
+  theme_minimal() +
+  annotate("text", 
+           x = max(funding_performance_filterNA$All_Other_Salaries) * 0.95, 
+           y = max(funding_performance_filterNA$Mean_Scale_Score_Math) * 0.95, 
+           label = add_r_squared(lm(Mean_Scale_Score_Math ~ poly(All_Other_Salaries, 3), data = funding_performance_filterNA)), 
+           color = "blue", size = 3, hjust = 1, vjust = 1)
+
+# Scatter plot for Employee_Benefits vs. Mean Scale Score (Math) with polynomial regression and R² label
+ggplot(funding_performance_filterNA, aes(x = Employee_Benefits, y = Mean_Scale_Score_Math)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue", se = FALSE) +
+  labs(title = "Employee Benefits Funding vs. Mean Scale Score (Math)", 
+       x = "Employee Benefits Funding", y = "Mean Scale Score (Math)") +
+  scale_x_continuous(labels = comma_format()) + 
+  theme_minimal() +
+  annotate("text", 
+           x = max(funding_performance_filterNA$Employee_Benefits) * 0.95, 
+           y = max(funding_performance_filterNA$Mean_Scale_Score_Math) * 0.95, 
+           label = add_r_squared(lm(Mean_Scale_Score_Math ~ poly(Employee_Benefits, 3), data = funding_performance_filterNA)), 
+           color = "blue", size = 3, hjust = 1, vjust = 1)
+
+# Scatter plot for All_Other vs. Mean Scale Score (Math) with polynomial regression and R² label
+ggplot(funding_performance_filterNA, aes(x = All_Other, y = Mean_Scale_Score_Math)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue", se = FALSE) +
+  labs(title = "All Other Funding vs. Mean Scale Score (Math)", 
+       x = "All Other Funding", y = "Mean Scale Score (Math)") +
+  scale_x_continuous(labels = comma_format()) + 
+  theme_minimal() +
+  annotate("text", 
+           x = max(funding_performance_filterNA$All_Other) * 0.95, 
+           y = max(funding_performance_filterNA$Mean_Scale_Score_Math) * 0.95, 
+           label = add_r_squared(lm(Mean_Scale_Score_Math ~ poly(All_Other, 3), data = funding_performance_filterNA)), 
+           color = "blue", size = 3, hjust = 1, vjust = 1)
+```
+
+Regents
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+# Split the REGENTS data by Regents Exam type
+regents_split <- REGENTS  |>
+  group_by(DBN, Year, `Regents Exam`)  |>
+  summarise(
+    total_tested = sum(`Total Tested`, na.rm = TRUE),
+    mean_score = mean(`Mean Score`, na.rm = TRUE),
+    number_below_65 = sum(`Number Scoring Below 65`, na.rm = TRUE),
+    percent_below_65 = mean(`Percent Scoring Below 65`, na.rm = TRUE),
+    number_65_or_above = sum(`Number Scoring 65 or Above`, na.rm = TRUE),
+    percent_65_or_above = mean(`Percent Scoring 65 or Above`, na.rm = TRUE),
+    number_80_or_above = sum(`Number Scoring 80 or Above`, na.rm = TRUE),
+    percent_80_or_above = mean(`Percent Scoring 80 or Above`, na.rm = TRUE),
+    number_cuny_proficiency = sum(`Number meeting CUNY proficiency requirmenets`, na.rm = TRUE),
+    percent_cuny_proficiency = mean(`Percent meeting CUNY proficiency requirmenets`, na.rm = TRUE)
+  )  |>
+  ungroup()
+
+
+regents_wide <- regents_split |>
+  pivot_wider(
+    names_from = `Regents Exam`,
+    values_from = c(
+      total_tested, mean_score, number_below_65, percent_below_65,
+      number_65_or_above, percent_65_or_above, number_80_or_above,
+      percent_80_or_above, number_cuny_proficiency, percent_cuny_proficiency
+    )
+  )
+
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+regents_funding <- REGENTS |>
+  filter(`Year` >= 2018) |>
+  left_join(funding_C_201823, by = c("DBN", "Year"))
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+# Calculate correlation between Total Funding per Pupil and Mean Score
+
+regent_corr<-cor(regents_funding$`Total School Funding per Pupil`, regents_funding$`Mean Score`, use = "complete.obs")
+cat("The correlation between Total School Funding per Pupil and Mean Regent Score is ", regent_corr, "\n")
+
+ggplot(regents_funding, aes(x = `Total School Funding per Pupil`, y = `Mean Score`)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Total Funding per Pupil vs Mean Regent Score",
+       x = "Total Funding per Pupil",
+       y = "Mean Regent Score") +
+  theme_minimal()
+
+regent_corr<-cor(regents_funding$`Total School Funding per Pupil`, regents_funding$`Percent Scoring 65 or Above`, use = "complete.obs")
+cat("The correlation between Total School Funding per Pupil and Percent Scoring 65 or Above is ", regent_corr, "\n")
+
+ggplot(regents_funding, aes(x = `Total School Funding per Pupil`, y = `Percent Scoring 65 or Above`)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Total School Funding per Pupil vs Percent Scoring Above 65 on Regents",
+       x = "Total School Funding per Pupil",
+       y = "Percent Scoring 65 or Above") +
+  theme_minimal()
+
+```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+
+# Clean column names by removing unwanted characters (e.g., spaces, newline characters)
+colnames(regents_funding) <- gsub("[[:space:][:cntrl:]]", "_", colnames(regents_funding))
+
+colnames(regents_funding) <- gsub("School_Name.x", "School_Name", colnames(regents_funding))
+colnames(regents_funding) <- gsub("School_Name.y", "School_Name", colnames(regents_funding))
+colnames(regents_funding) <- gsub("Pupil_rnSupport_rnServices", "Pupil_Support_Services", colnames(regents_funding))
+colnames(regents_funding) <- gsub("Federal_rnFunding", "Federal_Funding", colnames(regents_funding))
+colnames(regents_funding) <- gsub("State_&_Local_Funding_per_Pupil", "State_&_Local_Funding_per_Pupil", colnames(regents_funding))
+
+funding_columns <- c(
+  "State_&_Local_Funding", 
+  "Federal___Funding", 
+  "State_&_Local__Funding_per_Pupil", 
+  "Federal_Funding___per_Pupil", 
+  "Total_School_Funding_per_Pupil",
+  "Total_School_Allocation_w/_Central_District_Costs"
+)
+
+# Define exam performance columns
+exam_columns <- c(
+  "Mean_Score",
+  "Percent_Scoring_65_or_Above",
+  "Percent_Scoring_80_or_Above"
+)
+
+# Subset the data
+regents_funding_clean <- regents_funding |>
+  select(all_of(c(funding_columns, exam_columns)))
+
+```
+
+T-test
+Low R Squared value
+In the polynomial regression between Total School Funding per Pupil and Mean Regent Score, about 6.7% of the variation in Mean Score can be explained by Total School Funding per Pupil. This suggests that there are likely other factors influencing mean scores, as funding per pupil is not a strong predictor of the mean exam score in this model.
+
+``` {r}
+
+regents_funding_na <- regents_funding_clean |>
+  drop_na(`Mean_Score`, `Total_School_Funding_per_Pupil`)
+model_poly_1 <- lm(`Mean_Score` ~ poly(`Total_School_Funding_per_Pupil`, 2), data = regents_funding_na)
+summary(model_poly_1)
+
+ggplot(regents_funding_na, aes(x = `Total_School_Funding_per_Pupil`, y = `Mean_Score`)) +
+  geom_point(color = "skyblue", alpha = 0.5) +  # Scatter points
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), color = "navy", se = FALSE) +  # Polynomial line
+  labs(
+    title = "Mean Regent Score vs Total School Funding per Pupil",
+    subtitle = "Polynomial Regression",
+    x = "Total School Funding per Pupil",
+    y = "Mean Regent Score"
+  ) +
+  theme_minimal()
+```
+
+## Charter Schools
+Do charter schools receive more funding and how are their funds spent?
+Moving on to charter schools. Charter schools are publicly funded but operate independently. 
+Charter school funding averages 30% less than traditional public schools. Charter schools in major cities received, on average, $7,147 less per pupil during the 2019-20 school year, a new study finds.[^4] While they need to meet certain performance goals, they receive less per-pupil funding than district schools, which can impact their ability to offer additional resources and support for students. The range of scores remains similar to that ofnon charter schools, however, charter schools have a lower median score in comparison to district-run schools.
+
+[^4]: https://www.k12dive.com/news/charters-less-funding-traditional-public-schools/690326/
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE} 
+#| code-fold: true 
+#| code-title: Code
+#| layout-ncol: 2
+# Calculate the average Max Scale Score for charter and non-charter schools for each subject
+performance_comparison <- All_CS_combined |>
+  group_by(Subject, isCharterSchool) |>
+  summarise(
+    Average_Score = mean(Mean.Scale.Score, na.rm = TRUE),
+    SD_Score = sd(Mean.Scale.Score, na.rm = TRUE),
+    N = n(), 
+    .groups = 'drop'
+  )
+
+# Plot mean scale score by charter school status
+ggplot(performance_comparison, aes(x = isCharterSchool, y = Average_Score, fill = isCharterSchool)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ Subject) +  # Separate by Subject (ELA and Math)
+  labs(
+    title = "Comparison of Mean Scale Score by Charter School Status",
+    x = "Charter School Status",
+    y = "Average Mean Scale Score"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("No" = "lightblue", "Yes" = "lightcoral"))
+
+All_CS_combined_clean <- All_CS_combined |>
+  filter(is.finite(Mean.Scale.Score))
+
+# Boxplots for Charter School status
+ggplot(All_CS_combined, aes(x = isCharterSchool, y = Mean.Scale.Score, fill = isCharterSchool)) +
+  geom_boxplot() +  
+  facet_wrap(~ Subject) +  
+  labs(
+    title = "Comparison of Mean Scale Score by Charter School Status",
+    x = "Charter School Status",
+    y = "Mean Scale Score"
+  ) +
+  theme_minimal() + 
+  scale_fill_manual(values = c("No" = "lightblue", "Yes" = "palegreen3")) +  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  
+  )
+```
+
+## Are there certain schools that are more likely to be successful in obtaining sources of funding? 
+As we saw above, the majority of public school funding comes from state and local sources with local resources filling the gap between State aid and the cost of instruction. The data we are using in this analysis, however, does not distinguish between State and Local funding. As we can see from the Rockefeller Institute's report, 54% of education revenue was local.[^5] This is a significant portion of funding that is not distinguished in this analysis. 
+
+[^5]: https://rockinst.org/wp-content/uploads/2024/12/2024-12-Foundation-Aid-Report.pdf
+
+# Spending
+## How does city-wide, district-wide, and school-wide per-pupil spending relate to academic performance? 
+
+In the code below, I start by merging two datasets on district and year: `district_spending_0412` (school district spending data) with two academic performance datasets: `district_ELA_2006_12` and `district_MATH_2006_12.`
+I filter out the years 2004 and 2005 are excluded due to incomplete academic performance data for these years. Joining with the nyc shapefile, we can map the spending data by district. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+district_spending_ELA<- district_spending_0412 |>
+  left_join(district_ELA_2006_12, by = c("csd" = "District", "year" = "Year")) |>
+    filter(year != 2004 & year != 2005) # filter out 2004-2005
+
+district_spending_MATH <- district_spending_0412 |>
+  left_join(district_MATH_2006_12, by = c("csd" = "District", "year" = "Year")) |>
+    filter(year != 2004 & year != 2005) # filter out 2004-2005
+
+
+funding_map_df <- nyc_sf |>
+  left_join(district_spending_0412, by = c("SchoolDist" = "csd")) 
+
+grand_total_df <- funding_map_df[, c("year", "SchoolDist", "grand_total_csd", "grand_total_boro", "grand_total_nyc")]
+
+funding_map_df$grand_total_nyc <- as.numeric(funding_map_df$grand_total_nyc)
+
+funding_map_gif <- funding_map_df |> 
+  ggplot() + 
+  geom_sf(aes(fill = grand_total_csd), color = "white", size = 0.2) + 
+  scale_fill_gradient(low = "lightblue", high = "darkblue", name = "Total NYC Funding") +
+  labs(
+    title = "Funding by District in NYC (Total)", 
+    caption = "Data Source: NYC School Spending"
+  )  + 
+  theme_minimal() +   
+  theme(
+    legend.position = "bottom", 
+    legend.key.width = unit(4, "lines"), 
+    legend.text = element_text(size = 10), 
+    legend.title = element_text(size = 12), 
+    plot.margin = margin(10, 10, 10, 10) 
+  ) + 
+  geom_sf_text(data = nyc_sf, aes(geometry = geometry, label = SchoolDist), color = "white", size = 2) +
+  transition_time(as.integer(year)) + 
+  labs(title = "Funding by District in NYC (Total) - Year: {frame_time}")
+
+# save_animation(funding_map_gif, "fundingmap.gif")
+```
+![](images/fundingmap.gif)
+
+To get a look at some more recent years after, we can use the district expenditure data for 2017 and 2018.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+expenditure_201718_filtered <- expenditure_201618 |>
+  filter(str_starts(`By District`, "District")) |>
+  mutate(District = str_extract(`By District`, "\\d{2}"),
+         District = as.numeric(`District`),
+    `Dollar_Amt` = str_extract(`Dollars`, "(?<=\\$).*"),
+     Dollar_Amt = gsub(",", "", Dollar_Amt),  
+    Dollar_Amt = as.numeric(Dollar_Amt),   
+    Per_Capita_Amt = str_extract(`Per Capita`, "(?<=\\$).*"),
+    Per_Capita_Amt = gsub(",", "", Per_Capita_Amt), 
+    Per_Capita_Amt = as.numeric(Per_Capita_Amt),
+  )
+
+# Join with Map Shapefile data
+
+expenditure_map <- nyc_sf |>
+  left_join(expenditure_201718_filtered, by = c("SchoolDist" = "District")) 
+
+expenditure_map_gif <- expenditure_map |> 
+  ggplot() + 
+  geom_sf(aes(fill = `Dollar_Amt`), color = "white", size = 0.2) + 
+  scale_fill_gradient(low = "lightyellow", high = "darkgreen", name = "Total Expenditure ($)") +
+  labs(
+    title = "Expenditure by District in NYC (Total)", 
+    caption = "Data Source: NYC School Expenditures"
+  ) + 
+  theme_minimal() +   
+ theme(
+    legend.position = "bottom",
+    legend.key.width = unit(4, "lines"),  
+    legend.text = element_text(size = 10),   
+    legend.title = element_text(size = 12),  
+    plot.margin = margin(10, 10, 10, 10)
+  ) +
+  geom_sf_text(data = nyc_sf, aes(geometry = geometry, label = SchoolDist), color = "white", size = 2) +
+  transition_time(as.integer(Year)) + 
+  labs(title = "Expenditure  by District in NYC (Total) - Year: {frame_time}")
+
+# expenditure_map_gif
+
+# anim_save(filename="expendituremap.gif", expenditure_map_gif)
+
+```
+
+![](images/expendituremap.gif)
+
+When performing a linear regression between `Mean Scale Score` and `grand_total_csd`, there is a negative relationship between total school funding per pupil and mean scale scores. The model explains only 15.56% of the variation in the mean scale scores for math. However, the relationship between funding and performance is highly statistically significant (p-value < 0.001), meaning that the association between total funding and academic performance is unlikely to be due to chance.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+# polynomial regression model: Mean Score math as a function of spending
+model_lm_m <- lm(Mean.Scale.Score ~ grand_total_csd, data = district_spending_MATH)
+
+
+summary(model_lm_m)
+```
+Likewise, for ELA the linear regression results below indicates a small negative relationship between `grand_total_csd` and `Mean Scale Score`. The coefficient for grand_total_csd (total funding) is negative, suggesting that higher funding is associated with slightly lower mean scale scores. 15% of the variation in mean ELA scale scores can be explained by total district spending. 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+#| layout-ncol: 2
+# polynomial regression model: Mean Score ela as a function of spending
+model_lm_e <- lm(Mean.Scale.Score ~ grand_total_csd, data = district_spending_ELA)
+summary(model_lm_e)
+
+ggplot(district_spending_MATH, aes(x = `grand_total_csd`, y = `Mean.Scale.Score`)) +
+  geom_point(color = "skyblue", alpha = 0.5) +  # Scatter points
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), color = "navy", se = FALSE) +  # Polynomial line
+  labs(
+    title = "Mean Math Score vs Total District Spending",
+    subtitle = "Polynomial Regression",
+    x = "TotalTotal District Spending",
+    y = "Mean Math Score"
+  ) +
+  theme_minimal()
+
+ggplot(district_spending_ELA, aes(x = `grand_total_csd`, y = `Mean.Scale.Score`)) +
+  geom_point(color = "skyblue", alpha = 0.5) +  # Scatter points
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), color = "navy", se = FALSE) +  # Polynomial line
+  labs(
+    title = "Mean ELA Score vs Total District Spending",
+    subtitle = "Polynomial Regression",
+    x = "Total District Spending",
+    y = "Mean ELA Score"
+  ) +
+  theme_minimal()
+```
+
+
+## Does spending on certain purposes or functions correlate with higher academic performance? 
+The highest-spending districts in New York City were not necessarily the highest-performing. 
+
+In most districts, classroom spending is around 50% of total district funding. Classroom spending is the largest category of spending, followed by support services, leadership, ancillary services, and building services.
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+district_spending_pct <- district_spending_0412 |>
+  mutate(
+    classroom_csd_pct = classroom_csd/grand_total_csd,
+         support_csd_pct = support_csd/grand_total_csd, 
+leadership_csd_pct = leadership_csd/grand_total_csd,
+ancillary_csd_pct = ancillary_csd/grand_total_csd,
+building_csd_pct = building_csd/grand_total_csd)
+
+
+# Scatter plot of classroom spending vs. total district spending
+ggplot(district_spending_pct, aes(x = csd, y = classroom_csd_pct)) +
+  geom_point(color = "skyblue", alpha = 0.5) +  
+  geom_smooth(method = "lm", color = "navy", se = FALSE) + 
+  labs(
+    title = "Classroom Spending vs  District",
+    x = "Total District Spending",
+    y = "Classroom Spending (%)"
+  ) +
+  theme_minimal()
+
+```
+
+**Classroom Spending vs. Mean Scale Score**
+Given the sizeable portion of classroom spending,let's take a look at its relation to student's academic performance. The scatter plot below shows the relationship between classroom spending and mean scale scores for ELA and Math. The blue line represents a non-linear smoothing of the data, showing a slight negative trend between classroom spending and mean scale scores. 
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+ggplot(district_spending_ELA, aes(x = classroom_csd, y = Mean.Scale.Score)) +
+  geom_point() +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +  # Non-linear smoothing
+  labs(
+    title = "Classroom Spending vs. Mean Scale Score (ELA)",
+    x = "Classroom Spending (CSD)",
+    y = "Mean Scale Score (ELA)"
+  ) +
+  theme_minimal()
+
+ggplot(district_spending_MATH, aes(x = classroom_csd, y = Mean.Scale.Score)) +
+  geom_point() +
+  geom_smooth(method = "loess", color = "red", se = FALSE) +  # Non-linear smoothing
+  labs(
+    title = "Classroom Spending vs. Mean Scale Score (Math)",
+    x = "Classroom Spending (CSD)",
+    y = "Mean Scale Score (Math)"
+  ) +
+  theme_minimal()
+```  
+
+
+# Conclusion: Call for Change
+
+Throughout this analysis, it seems that the relationship between funding and academic performance tends to reflect the funding formula. Essentially, more funding is indeed distributed to schools that require more resources. That is, if we consider that schools with lower-performing students need more financial resources. As such, funding aimed at bringing equity to the school system creates a complex dynamic. While funding is essential for providing resources and support to students, it is not the only factor that determines academic success and seems to be reactive.
+
+First implemented in 2007, Foundation Aid uses decades-old data to calculate district needs. It relies on figures from the 2000 Census to measure student poverty. The Rockefeller Institute has called for “significant change” to the school funding formula. The recommendations include modifying how the formula accounts for inflation, changing and updating the data used to determine student poverty, and establishing more nuanced calculations for funding based on students with disabilities, among other changes. [^5]
+
+[^5]: https://rockinst.org/wp-content/uploads/2024/12/2024-12-Foundation-Aid-Report.pdf 
+
