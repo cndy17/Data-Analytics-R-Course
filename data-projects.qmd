@@ -1,7 +1,21 @@
 ---
 title: "Data Projects"
 ---
-### Elect
+
+### New York City Public School Funding & Spending
+[![](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRIOLZxaMbA3A5AxUbxei_bT3QaZfzG6RVG7g&s){width="100"}](https://cndy17.github.io/STA9750-2024-FALL/NYCPSFunding.html)
+
+A dive into the funding and spending of New York City public schools. This project uses data from the NYC Open Data portal to analyze the relationship between funding and spending in NYC public schools. We will explore the relationship between funding and spending in NYC public schools with academic outcomes.
+
+### Retirement Plan Monte Carlo Analysis
+
+[![](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSLOyUjJ-oupGYZLd4UYZd4u9stccAeTPOcyA&s){width="100"}](https://cndy17.github.io/STA9750-2024-FALL/mp04.html)
+
+A comparison of CUNY retirement plans using simulation and Monte Carlo analysis, considering historical data using APIs. We will understand the two retirement plan options by leveraging historical data from FRED and Alpha Vantage. Specifically, we'll focus on key metrics, such as wage growth, inflation rates, equity returns (from U.S. and international markets), and bond returns.
+
+[View Report](https://cndy17.github.io/STA9750-2024-FALL/mp03.html)
+
+### Election Data Analysis
 
 [![](images/voted.jpg){width="100"}](https://cndy17.github.io/STA9750-2024-FALL/mp03.html)
 
@@ -21,6 +35,6 @@ An investigation of imdb data to act as Hollywood development executives, diving
 
 [![](images/logo_fta.jpg){width="100"}](https://cndy17.github.io/STA9750-2024-FALL/mp01.html)
 
-An investigation of ridership and the fiscal characteristics of US public transit authorities. In this project, I utilize dplyr operations (mutate, group_by, summarize, select, arrange, rename) in R to produce summary statistics.
+An exploration of ridership and the fiscal characteristics of US public transit authorities. In this project, I utilize dplyr operations (mutate, group_by, summarize, select, arrange, rename) in R to produce summary statistics.
 
 [View Report](https://cndy17.github.io/STA9750-2024-FALL/mp01.html)

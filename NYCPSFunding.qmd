@@ -4,7 +4,8 @@ author: "Cindy Li"
 ---
 
 # Background
-New York State spent 29,873 dollars per pupil on K-12 education in 2022, more than any other state in the nation and almost double the national average of 15,633 dollars per pupil.[^1] New York City Public Schools are the largest public school system in the United States. The system serves over 1.1 million students in more than 1,800 schools.
+New York State spent 29,873 dollars per pupil on K-12 education in 2022, more than any other state in the nation and almost double the national average of 15,633 dollars per pupil.[^1] New York City Public Schools are the largest public school system in the United States. The system serves over 1.1 million students in more than 1,800 schools.[^1]
+![](https://www.bxtrumanhighschool.com/wp-content/uploads/2023/08/nycps-logo.png)
 
 [^1]: https://rockinst.org/wp-content/uploads/2024/12/2024-12-Foundation-Aid-Report.pdf 
 
@@ -141,11 +142,6 @@ GRAD_RATES <- GRAD_RATES |> mutate(across(c(`# Grads`, `% Grads`, `# Total Regen
                                       `% Regents without Advanced of Cohort`, `% Regents without Advanced of Grads`,
                                       `# Local`, `% Local of Cohort`, `% Local of Grads`, `# Still Enrolled`,
                                       `% Still Enrolled`, `# Dropout`, `% Dropout`), ~ as.numeric(.)))
-```
-
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
 
 # Calculate the averages for the relevant columns
 grad_rates_avg <- GRAD_RATES |>
@@ -321,11 +317,7 @@ get_mathall_file <- function(fname){
 }
 
 MATH_2006_12_ALL <- get_mathall_file("2006_-_2012__Math_Test_Results__-_All_Students")
-```
 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Load InfoHub Data
 # Math 2013- 2023
 get_math1323_file <- function(fname, zname, sheet, FILE_URL){
   if(!file.exists(fname)){
@@ -500,11 +492,7 @@ MATH_2013_23_ECON <- MATH_2013_23_ECON |>
 MATH_ELA_2013_23_ECON <- MATH_2013_23_ECON |>
   full_join(ELA_2013_23_ECON, by = c("DBN", "Year", "Grade", "Demographic", "School Name"), 
             suffix = c(".math", ".ela"))
-```
 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
 # Convert character to numeric data type
 MATH_ELA_2013_23_ECON <- MATH_ELA_2013_23_ECON |>
   mutate(across(
@@ -521,6 +509,7 @@ ELA and MATH Test Score Distribution By Student Economic Demographic
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| layout-ncol: 2
 # Faceted Math Score Plot by Demographic
 ggplot(ECON_MATH_ELA_13_23, aes(x = `Mean.Scale.Score.math`)) +
   geom_histogram(binwidth = 5, fill = "lightblue", color = "black", alpha = 0.7) +
@@ -881,7 +870,7 @@ Summary Statistics for Academic Performance Metrics
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
-#| layout-ncol: 3
+#| layout-ncol: 2
 
 grad_rates_summary <- GRAD_RATES |>
   summarise(
@@ -994,11 +983,12 @@ math_ela_summary |>
 ```
 
 # Funding
-Overall, NYC has seen an increase in funding over the years. New York City Public Schools receive funding from three sources: State aid, local resources, and Federal aid. The majority of funding comes from State and Local sources. 
+Overall, NYC has seen an increase in funding over the years. New York City Public Schools receive funding from three sources: State aid, local resources, and Federal aid. The majority of funding comes from State and Local sources. We can also see that Total Funding per Pupil has increased overtime
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| layout-ncol: 2
 funding_source_totals <- funding_C_201823 |>
   select(`School Name`, `DBN`, `Year`,
          State_And_Local_Funding_per_Pupil = `State & Local\r\nFunding per Pupil`, 
@@ -1033,13 +1023,7 @@ ggplot(funding_source_avg, aes(x = Funding_Type, y = mean_percentage, fill = Fun
   theme(
     legend.position = "bottom")
 
-``` 
-
-Total Funding per Pupil Has Increased Overtime
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
-
+# line plot of total school funding per pupil over time
 funding_C_201823 |>
   filter(!is.na(`Total School Funding per Pupil`)) |>
   group_by(Year) |>
@@ -1121,7 +1105,8 @@ Transfer:
 [^10]: https://www.schools.nyc.gov/about-us/funding/funding-our-schools/fair-student-funding-fsf 
 
 **Distribution of Total School Funding per Pupil**
-A long tail distribution of total school funding per pupil is observed. The figure below demonstrates that some schools have significantly higher funding per pupil amounts compared to the majority of schools.
+
+We can observe a long tail distribution of total school funding per pupil. The figure below demonstrates that some schools have significantly higher funding per pupil amounts compared to the majority of schools.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -1135,6 +1120,7 @@ ggplot(funding_C_201823, aes(x = `Total School Funding per Pupil`)) +
 ```
 
 **Schools with the Most Funding**
+
 Number one is [Home Instruction](https://www.homeinstructionschools.com/), a District 75 school located in the Bronx. District 75 is a special education district that serves students with significant challenges. Home Instruction provides K-12 educational services for students who are unable to attend school due to orthopedic, non-orthopedic/medical, or psychiatric reasons. At number two, we see Hospital Schools, which is also a District 75 school. As the name suggests, it is a special program to meet the educational needs of hospitalized children. Passages Academy from the table below provides education, as well as counseling services, for court-involved students who are detained. P255Q is a District 75 school for students with Autism Spectrum Disorders. 
 
 These statistics align with the idea that schools with higher funding per pupil are those that serve students with greater needs. All of the top funded schools are a part of District 75, which provides specialized educational support for students with significant challenges, such as:[^11]
@@ -1185,6 +1171,7 @@ top_funding_table
 
 ## Funding Allocation
 **Classroom Teacher Salary Allocation**
+
 For most schools, the majority of their funding allocation is for classroom teachers.
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -1211,18 +1198,7 @@ Here we see that increasing funding for classroom teachers can boost student per
 #| code-fold: true
 #| code-title: Code
 # Calculate percentage of each spending category relative to total funding
-funding_spending <- funding_C_201823 |>
-  mutate(
-    pct_classroom_teachers = `Classroom Teachers` / `Total Allocation by Purpose` * 100,
-    pct_all_other_salaries = `All Other Salaries` / `Total Allocation by Purpose` * 100,
-    pct_employee_benefits = `Employee Benefits` / `Total Allocation by Purpose` * 100
-  )
-```
 
-have limited funding data to match the academic performance
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
 funding_spending <- funding_C_201823 |>
   mutate(
     pct_classroom_teachers = `Classroom Teachers` / `Total Allocation by Purpose` * 100,
@@ -1259,12 +1235,6 @@ funding_performance_select <- funding_performance_df |>
 funding_performance_filterNA <- funding_performance_select |>
   drop_na(Classroom_Teachers, All_Other_Salaries, Employee_Benefits, BOCES_Services, All_Other,
          Mean_Scale_Score_Math, Mean_Scale_Score_ELA)
-```
-
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
-#| layout-ncol: 2
 
 # Function to compute and display the R-squared value for the polynomial model
 add_r_squared <- function(model) {
@@ -1303,7 +1273,9 @@ ggplot(funding_performance_filterNA, aes(x = Classroom_Teachers, y = Mean_Scale_
 ```
 
 ## Funding Correlations
-Looking at the correlation matrix, we can see the relationships between different funding sources and academic performance metrics. Total Funding per Pupil has weak negative correlations with performance scores, which could imply that schools with more funding per pupil do not necessarily have better performance outcomes. This does makes sense as more funding is actually allocated based student need determined by performance lags. On the flip side, it seems that there are weak positive correlations between Classroom Teacher funding with Mean_Scale_Score_Math (0.155) and Mean_Scale_Score_ELA (0.133). Both Instructional_Media and Pupil_Support_Services also have weak correlations with both Mean_Scale_Score_Math and Mean_Scale_Score_ELA. The weak correlations between funding categories (Classroom Teachers, All Other Salaries, Employee Benefits, etc.) with Mean_Scale_Score_Math and Mean_Scale_Score_ELA suggests that funding allocations may not directly influence student performance in these areas. Rather than driving academic performance, funding is more so being used to bring equity to the education system. 
+Looking at the correlation matrix, we can see the relationships between different funding sources and academic performance metrics. Total Funding per Pupil has weak negative correlations with performance scores, which could imply that schools with more funding per pupil do not necessarily have better performance outcomes. This does makes sense as more funding is actually allocated based student need determined by performance lags. 
+
+On the flip side, it seems that there are weak positive correlations between Classroom Teacher funding with Mean_Scale_Score_Math (0.155) and Mean_Scale_Score_ELA (0.133). Both Instructional_Media and Pupil_Support_Services also have weak correlations with both Mean_Scale_Score_Math and Mean_Scale_Score_ELA. The weak correlations between funding categories (Classroom Teachers, All Other Salaries, Employee Benefits, etc.) with Mean_Scale_Score_Math and Mean_Scale_Score_ELA suggests that funding allocations may not directly influence student performance in these areas. Rather than driving academic performance, funding is more so being used to bring equity to the education system. 
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -1473,7 +1445,9 @@ ggplot(funding_performance_filterNA, aes(x = All_Other, y = Mean_Scale_Score_Mat
            color = "blue", size = 3, hjust = 1, vjust = 1)
 ```
 
-Regents
+**Regents**
+
+In addition to Mean Scale Scores for Math and ELA, we can take a look at Regent exam scores. The Regents exams are standardized tests in New York State that are administered to high school students. These exams are used to measure student achievement and determine whether students have met the minimum requirements for graduation. The exams cover a range of subjects, including English, math, science, and social studies.
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -1507,20 +1481,10 @@ regents_wide <- regents_split |>
     )
   )
 
-```
-
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
-
+# join regents with funding
 regents_funding <- REGENTS |>
   filter(`Year` >= 2018) |>
   left_join(funding_C_201823, by = c("DBN", "Year"))
-```
-
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
 
 # Calculate correlation between Total Funding per Pupil and Mean Score
 
@@ -1545,6 +1509,7 @@ ggplot(regents_funding, aes(x = `Total School Funding per Pupil`, y = `Percent S
   theme_minimal()
 
 ```
+
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -1580,12 +1545,12 @@ regents_funding_clean <- regents_funding |>
 
 ```
 
-T-test
-Low R Squared value
 In the polynomial regression between Total School Funding per Pupil and Mean Regent Score, about 6.7% of the variation in Mean Score can be explained by Total School Funding per Pupil. This suggests that there are likely other factors influencing mean scores, as funding per pupil is not a strong predictor of the mean exam score in this model.
 
-``` {r}
-
+```{r, echo = TRUE, message = FALSE, warning = FALSE} 
+#| code-fold: true 
+#| code-title: Code
+# drop nas and run model
 regents_funding_na <- regents_funding_clean |>
   drop_na(`Mean_Score`, `Total_School_Funding_per_Pupil`)
 model_poly_1 <- lm(`Mean_Score` ~ poly(`Total_School_Funding_per_Pupil`, 2), data = regents_funding_na)
@@ -1800,7 +1765,7 @@ ggplot(district_spending_ELA, aes(x = `grand_total_csd`, y = `Mean.Scale.Score`)
 ```
 
 
-## Does spending on certain purposes or functions correlate with higher academic performance? 
+**Does spending on certain purposes or functions correlate with higher academic performance?** 
 The highest-spending districts in New York City were not necessarily the highest-performing. 
 
 In most districts, classroom spending is around 50% of total district funding. Classroom spending is the largest category of spending, followed by support services, leadership, ancillary services, and building services.
@@ -1835,6 +1800,7 @@ Given the sizeable portion of classroom spending,let's take a look at its relati
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| layout-ncol: 2
 ggplot(district_spending_ELA, aes(x = classroom_csd, y = Mean.Scale.Score)) +
   geom_point() +
   geom_smooth(method = "loess", color = "blue", se = FALSE) +  # Non-linear smoothing
@@ -1857,7 +1823,7 @@ ggplot(district_spending_MATH, aes(x = classroom_csd, y = Mean.Scale.Score)) +
 ```  
 
 
-# Conclusion: Call for Change
+# Conclusion: A Call for Change
 
 Throughout this analysis, it seems that the relationship between funding and academic performance tends to reflect the funding formula. Essentially, more funding is indeed distributed to schools that require more resources. That is, if we consider that schools with lower-performing students need more financial resources. As such, funding aimed at bringing equity to the school system creates a complex dynamic. While funding is essential for providing resources and support to students, it is not the only factor that determines academic success and seems to be reactive.
 
