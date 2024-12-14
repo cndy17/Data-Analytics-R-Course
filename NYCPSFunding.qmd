@@ -3,9 +3,10 @@ title: "New York City Public Schools Funding & Spending"
 author: "Cindy Li"
 ---
 
+![](https://www.bxtrumanhighschool.com/wp-content/uploads/2023/08/nycps-logo.png)
+
 # Background
 New York State spent 29,873 dollars per pupil on K-12 education in 2022, more than any other state in the nation and almost double the national average of 15,633 dollars per pupil.[^1] New York City Public Schools are the largest public school system in the United States. The system serves over 1.1 million students in more than 1,800 schools.[^1]
-![](https://www.bxtrumanhighschool.com/wp-content/uploads/2023/08/nycps-logo.png)
 
 [^1]: https://rockinst.org/wp-content/uploads/2024/12/2024-12-Foundation-Aid-Report.pdf 
 
@@ -1055,6 +1056,8 @@ Broadly speaking, FSF is the formula used to distribute funding to districts and
 
 Student needs are “weighted” based on the cost of meeting a student's educational need so that schools get more money for students with greater needs. This means that in districts with higher enrollment or more students living in poverty, Foundation Aid will be higher. Districts with higher overall incomes will see lower funding, but never below $500 per student. Determining and measuring student needs is a complex process. The NYC Department of Education uses a weighted formula to determine the needs of students. 
 
+![](images/FSFWeightsWork.png)
+
 **Fair Student Funding Weights**
 The NYC Department of Education shares details its method to determine the needs of students as such[^10]:
 Academic Intervention:
@@ -1074,33 +1077,20 @@ English Language Learner status, based on:
 Special Education, based on:
 - Students with special instruction through Individualized Education Programs (IEPs).
 
-- The number of special education periods mandated per week and the intensity of those services.
+- Special education periods mandated per week and the intensity of those services.
 
 Students in Temporary Housing, based on:
 
 - Families reported living in Doubled Up, Shelter, Hotel/Motel, or Other Temporary Living Situation on the Housing Questionnaire.
 
-Concentration of Needs, based on:
-- Schools with the highest needs
-
 High schools also have additional weights: 
-Career and Technical Education (CTE) Designated High Schools: 
+- Career and Technical Education (CTE) Designated High Schools
 
-- High Schools in which all students are engaged in NYC DOE-approved CTE programs of study
+- Specialized Academic: including higher course/credit loads and AP courses.
 
-Specialized Academic: 
+- Specialized Audition: performance audition or a portfolio review, Arts Endorsed Diploma
 
-- Supplementary instruction and assessments, including higher course/credit loads and AP courses.
-
-Specialized Audition: 
-
-- All students within the school participate are admitted through a screening process that involves a performance audition or a portfolio review. Students receive the Arts Endorsed Diploma.
-
-Transfer: 
-
-- Small high schools designed to re-engage students who have dropped out or are over-age and under-credited for their grade.
-
-![](images/FSFWeightsWork.png)
+- Transfer: re-engage students who have dropped out or are over-age and under-credited for their grade
 
 [^10]: https://www.schools.nyc.gov/about-us/funding/funding-our-schools/fair-student-funding-fsf 
 
@@ -1197,6 +1187,7 @@ Here we see that increasing funding for classroom teachers can boost student per
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| layout-ncol: 2
 # Calculate percentage of each spending category relative to total funding
 
 funding_spending <- funding_C_201823 |>
