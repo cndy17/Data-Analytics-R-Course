@@ -1822,3 +1822,4 @@ First implemented in 2007, Foundation Aid uses decades-old data to calculate dis
 
 [^5]: https://rockinst.org/wp-content/uploads/2024/12/2024-12-Foundation-Aid-Report.pdf 
 
+For future analysis, it would be interesting to get the weights that the NYC Department of Education uses to calculate the funding formula. I could sese how funding is allocated and do a bootstrap/Monte Carlo analysis on various weights to see how it impacts a school's funding allocation. 
