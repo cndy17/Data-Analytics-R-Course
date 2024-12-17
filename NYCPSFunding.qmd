@@ -10,6 +10,15 @@ New York State spent 29,873 dollars per pupil on K-12 education in 2022, more th
 
 [^1]: https://rockinst.org/wp-content/uploads/2024/12/2024-12-Foundation-Aid-Report.pdf 
 
+# Overarching Question: What factors are impacting overall academic performance in New York City’s public high schools?
+Within this overarching question, I will explore the following sub-questions surrounding funding and spending:
+- How does city-wide and district-wide per-pupil spending relate to academic performance?   
+
+- Does spending on certain purposes or functions correlate with higher academic performance? 
+
+- Are school funding and spending proportionate to the number of students enrolled? Are there certain schools that are more likely to be successful in obtaining sources of funding? Do charter schools receive more funding and how are their funds spent?
+
+
 ## NYC School Codes
 A New York City public school's school code is a six-digit number that identifies the school:
 - First two digits: Represent the school district
@@ -510,7 +519,7 @@ ELA and MATH Test Score Distribution By Student Economic Demographic
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
-#| layout-ncol: 2
+
 # Faceted Math Score Plot by Demographic
 ggplot(ECON_MATH_ELA_13_23, aes(x = `Mean.Scale.Score.math`)) +
   geom_histogram(binwidth = 5, fill = "lightblue", color = "black", alpha = 0.7) +
@@ -1177,7 +1186,7 @@ teacher_salary <-  funding_C_201823 |>
 ggplot(teacher_salary, aes(x = Year, y = Mean_Classroom_Teachers)) +
   geom_line(color = "royalblue", size = 1) +  
   geom_point(color = "royalblue", size = 2) +   
-  labs(title = "Mean Total Allocation to Classroom Teacher Salary Across Schools Over Time", x = "Year", y = "Mean Total Allocation($)") +
+  labs(title = "Mean Total Allocation to Classroom Teacher Salary Across Schools", x = "Year", y = "Mean Total Allocation($)") +
   scale_y_continuous(labels = scales::comma) +  # Format y-axis without scientific notation
   theme_minimal()
 ```
@@ -1480,7 +1489,7 @@ regents_funding <- REGENTS |>
 # Calculate correlation between Total Funding per Pupil and Mean Score
 
 regent_corr<-cor(regents_funding$`Total School Funding per Pupil`, regents_funding$`Mean Score`, use = "complete.obs")
-cat("The correlation between Total School Funding per Pupil and Mean Regent Score is ", regent_corr, "\n")
+cat("Correlation between Total School Funding per Pupil and Mean Regent Score: \n ", regent_corr, "\n")
 
 ggplot(regents_funding, aes(x = `Total School Funding per Pupil`, y = `Mean Score`)) +
   geom_point(alpha = 0.5) +
@@ -1490,7 +1499,7 @@ ggplot(regents_funding, aes(x = `Total School Funding per Pupil`, y = `Mean Scor
   theme_minimal()
 
 regent_corr<-cor(regents_funding$`Total School Funding per Pupil`, regents_funding$`Percent Scoring 65 or Above`, use = "complete.obs")
-cat("The correlation between Total School Funding per Pupil and Percent Scoring 65 or Above is ", regent_corr, "\n")
+cat("Correlation between Total School Funding per Pupil and Percent Scoring 65 or Above: \n", regent_corr, "\n")
 
 ggplot(regents_funding, aes(x = `Total School Funding per Pupil`, y = `Percent Scoring 65 or Above`)) +
   geom_point(alpha = 0.5) +
@@ -1569,7 +1578,6 @@ Charter school funding averages 30% less than traditional public schools. Charte
 ```{r, echo = TRUE, message = FALSE, warning = FALSE} 
 #| code-fold: true 
 #| code-title: Code
-#| layout-ncol: 2
 # Calculate the average Max Scale Score for charter and non-charter schools for each subject
 performance_comparison <- All_CS_combined |>
   group_by(Subject, isCharterSchool) |>
@@ -1727,11 +1735,14 @@ Likewise, for ELA the linear regression results below indicates a small negative
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
-#| layout-ncol: 2
 # polynomial regression model: Mean Score ela as a function of spending
 model_lm_e <- lm(Mean.Scale.Score ~ grand_total_csd, data = district_spending_ELA)
 summary(model_lm_e)
-
+```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+#| layout-ncol: 2
 ggplot(district_spending_MATH, aes(x = `grand_total_csd`, y = `Mean.Scale.Score`)) +
   geom_point(color = "skyblue", alpha = 0.5) +  # Scatter points
   geom_smooth(method = "lm", formula = y ~ poly(x, 2), color = "navy", se = FALSE) +  # Polynomial line
