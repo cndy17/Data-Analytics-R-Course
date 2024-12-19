@@ -536,8 +536,9 @@ ECON_MATH_ELA_13_23 <- MATH_ELA_2013_23_ECON |>
   filter(`Grade` == "All Grades")
 ```
 
-**ELA and MATH Test Score Distribution By Student Economic Demographic**
 Below we can take a look at the distribution of the data we just downloaded and cleaned. 
+
+**ELA and MATH Test Score Distribution By Student Economic Demographic**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -748,6 +749,7 @@ ELA_2006_12_CS <- charter_numeric(ELA_2006_12_CS)
 ```
 
 Here, I combine the separate years of charter school data sets for ELA and Math. I then assign a `Subject` column to then combine Math and ELA scores for charter schools into one dataframe. 
+
 **Charter School Math and ELA Score Data for 2006-2023**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -858,6 +860,7 @@ To perform district level analysis, I will use the following datasets:
 - `district_spending_0412`
 
 The New York Fed website has school funding data by district and borough for 2004 - 2012. I will pair that with Math and ELA scores by district for 2006 - 2012 from the City of New York.
+
 **District Spending Data for 2004-2012**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -1240,7 +1243,9 @@ sample_n(school_names, 57) |>
 ```
 
 **Schools With the Least Funding**
-We see that Young Adult Borough Centers (YABC) schools are receiving the least funding. YABC schols are typically part time, afternoon, and night programs for high schoolers who are behind in credits or cannot attend school during the day. [^12] All YABCs are managed by District 79. I would assume that these schools have less funding because they are *part time* in nature. YABC schools are also supplemented by the Learning to Work program.
+
+We see that Young Adult Borough Centers (YABC) schools are receiving the least funding. YABC schols are typically part time, afternoon, and night programs for high schoolers who are behind in credits or cannot attend school during the day.[^12] All YABCs are managed by District 79. I would assume that these schools have less funding because they are *part time* in nature. YABC schools are also supplemented by the Learning to Work program.
+
 [^12]: https://www.schools.nyc.gov/enrollment/other-ways-to-graduate/young-adult-borough-centers
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -1273,7 +1278,6 @@ lowest_funding_table <- avg_funding_per_school |>
 lowest_funding_table
 
 ```
-
 
 ## Funding Allocation
 **Classroom Teacher Salary Allocation**
@@ -1676,7 +1680,9 @@ ggplot(regents_funding_na, aes(x = `Total_School_Funding_per_Pupil`, y = `Mean_S
 
 ## Charter Schools
 **Are there certain schools that are more likely to be successful in obtaining sources of funding?**
+
 **Do charter schools receive more funding and how are their funds spent?**
+
 Moving on to charter schools. Charter schools are publicly funded but operate independently. 
 Charter school funding averages 30% less than traditional public schools. Charter schools in major cities received, on average, $7,147 less per pupil during the 2019-20 school year, a new study finds.[^4] While they need to meet certain performance goals, they receive less per-pupil funding than district schools, which can impact their ability to offer additional resources and support for students. The range of scores remains similar to that ofnon charter schools, however, charter schools have a lower median score in comparison to district-run schools.
 
@@ -1732,18 +1738,23 @@ As we saw above, the majority of public school funding comes from state and loca
 
 ## Specialized High Schools
 **Are there certain schools that are more likely to be successful in obtaining sources of funding?**
+
 **Do charter schools receive more funding and how are their funds spent?**
+
 In addition to Charter Schools, New York City has eight specialized high schools. One of which is The Bronx High School of Science that focuses on science, technology, engineering, and mathematics (STEM) education.
-DBN: X445
-District: 10
-Grades: 9–12
-Admission: Based on the Specialized High Schools Admissions Test (SHSAT) score
+
+- DBN: X445
+
+- District: 10
+
+- Grades: 9–12
+
+- Admission: Based on the Specialized High Schools Admissions Test (SHSAT) score
 
 Below we can see the funding amounts of these specialized high schools in 2018 and 2019. The median of funding across all schools is 26048.28, whereas the median funding across the specialized high schools is 17248.25.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE} 
 #| code-fold: true 
 #| code-title: Code
-#| layout-ncol: 2
 #| code-summary: "View Code for Comparison of Specialized HS Funding"
 
 # filter for DBN of specialised high schools
@@ -1843,6 +1854,7 @@ I filter out the years 2004 and 2005 are excluded due to incomplete academic per
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| code-summary: "View Code for Spending Map"
 district_spending_ELA<- district_spending_0412 |>
   left_join(district_ELA_2006_12, by = c("csd" = "District", "year" = "Year")) |>
     filter(year != 2004 & year != 2005) # filter out 2004-2005
@@ -1852,14 +1864,14 @@ district_spending_MATH <- district_spending_0412 |>
     filter(year != 2004 & year != 2005) # filter out 2004-2005
 
 
-funding_map_df <- nyc_sf |>
+spending_map_df_0412 <- nyc_sf |>
   left_join(district_spending_0412, by = c("SchoolDist" = "csd")) 
 
-grand_total_df <- funding_map_df[, c("year", "SchoolDist", "grand_total_csd", "grand_total_boro", "grand_total_nyc")]
+grand_total_df <- spending_map_df_0412[, c("year", "SchoolDist", "grand_total_csd", "grand_total_boro", "grand_total_nyc")]
 
-funding_map_df$grand_total_nyc <- as.numeric(funding_map_df$grand_total_nyc)
+spending_map_df_0412$grand_total_nyc <- as.numeric(spending_map_df_0412$grand_total_nyc)
 
-funding_map_gif <- funding_map_df |> 
+spending_map_df_0412_gif <- spending_map_df_0412 |> 
   ggplot() + 
   geom_sf(aes(fill = grand_total_csd), color = "white", size = 0.2) + 
   scale_fill_gradient(low = "lightblue", high = "darkblue", name = "Total NYC Funding") +
@@ -1877,11 +1889,11 @@ funding_map_gif <- funding_map_df |>
   ) + 
   geom_sf_text(data = nyc_sf, aes(geometry = geometry, label = SchoolDist), color = "white", size = 2) +
   transition_time(as.integer(year)) + 
-  labs(title = "Funding by District in NYC (Total) - Year: {frame_time}")
+  labs(title = "Spending by District in NYC (Total) - Year: {frame_time}")
 
-# save_animation(funding_map_gif, "fundingmap.gif")
+# anim_save("spending_map_0412.gif", animation = spending_map_df_0412_gif)
 ```
-![](images/fundingmap.gif)
+![](images/spending_map_0412.gif)
 
 To get a look at some more recent years after, we can use the district expenditure data for 2017 and 2018.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -1979,6 +1991,7 @@ ggplot(district_spending_ELA, aes(x = `grand_total_csd`, y = `Mean.Scale.Score`)
 
 
 **Does spending on certain purposes or functions correlate with higher academic performance?** 
+
 The highest-spending districts in New York City were not necessarily the highest-performing. 
 
 In most districts, classroom spending is around 50% of total district funding. Classroom spending is the largest category of spending, followed by support services, leadership, ancillary services, and building services.
@@ -2008,6 +2021,7 @@ ggplot(district_spending_pct, aes(x = csd, y = classroom_csd_pct)) +
 ```
 
 **Classroom Spending vs. Mean Scale Score**
+
 Given the sizeable portion of classroom spending,let's take a look at its relation to student's academic performance. The scatter plot below shows the relationship between classroom spending and mean scale scores for ELA and Math. The blue line represents a non-linear smoothing of the data, showing a slight negative trend between classroom spending and mean scale scores. 
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -2036,7 +2050,7 @@ ggplot(district_spending_MATH, aes(x = classroom_csd, y = Mean.Scale.Score)) +
 ```  
 
 
-# Conclusion: A Call for Change
+# Conclusion
 
 Throughout this analysis, it seems that the relationship between funding and academic performance tends to reflect the funding formula. Essentially, more funding is indeed distributed to schools that require more resources. That is, if we consider that schools with lower-performing students need more financial resources. As such, funding aimed at bringing equity to the school system creates a complex dynamic. While funding is essential for providing resources and support to students, it is not the only factor that determines academic success and seems to be reactive.
 
