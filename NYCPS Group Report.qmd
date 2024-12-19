@@ -27,12 +27,9 @@ Within our overarching question, we are exploring four specific areas:
 
 2. [Student Demographics](https://edodia.github.io/STA9750-2024-FALL/Attendance&GraduationRates.html)
 
-- Do teacher student ratios and class size tend to correlate with higher academic performance across districts? 
+- How does student attendance correlate with gradation rates and academic performance, particularly among different demographic groups? 
 
-- Schools may offer mental health programs, and after school programs, while some may not. Is this dependent on the district or not?
-
-- To what extent are mental health programs and after school programs correlated with academic performance (middle and high school)?  
-
+-  Are there trends over time that may suggest certain groups are more affected by attendance-related challenges?
 
 3. [School Characteristics](https://gautam-1-r.github.io/STA9750-2024-FALL/Individual_Report)
 
