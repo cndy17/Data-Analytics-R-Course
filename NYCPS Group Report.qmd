@@ -121,7 +121,7 @@ Mental health services are essential in ensuring academic success, enhancing stu
 
 
 ## School Funding & Spending
-![](https://cndy17.github.io/STA9750-2024-FALL/images/fundingmap.gif) 
+![](https://cndy17.github.io/STA9750-2024-FALL/images/spending_map_0412.gif) 
 
 ![](https://cndy17.github.io/STA9750-2024-FALL/images/expendituremap.gif)
 The maps above show the district per-pupil funding and district expenditure across NYC public schools. Over the years, we’ve seen public school funding increase across NYC as a whole. Since 2007, the schools have been funded according to the “Fair Student Funding” formula, aimed at allocating resources based on student enrollment and student needs. When we dive into the purpose of funding received, the majority of a school’s funding goes to classroom teacher salaries. While increasing funding for classroom teachers can boost student performance, this is observed only to a certain point, as seen below.
