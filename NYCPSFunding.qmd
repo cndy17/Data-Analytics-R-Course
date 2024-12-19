@@ -310,7 +310,7 @@ head(ELA_2013_23_ALL)
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Bind Data
-#|  code-summary: "View Code for Binding ELA Data"
+#| code-summary: "View Code for Binding ELA Data"
 ELA_2006_23_ALL <- bind_rows(
   ELA_2006_12_ALL,
   ELA_2013_23_ALL)
