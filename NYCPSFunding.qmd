@@ -1244,7 +1244,7 @@ sample_n(school_names, 57) |>
 
 **Schools With the Least Funding**
 
-We see that Young Adult Borough Centers (YABC) schools are receiving the least funding. YABC schols are typically part time, afternoon, and night programs for high schoolers who are behind in credits or cannot attend school during the day.[^12] All YABCs are managed by District 79. I would assume that these schools have less funding because they are *part time* in nature. YABC schools are also supplemented by the Learning to Work program.
+We see that Young Adult Borough Centers (YABC) schools are receiving the least funding. YABC schols are typically part time, afternoon, and night programs for high schoolers who are behind in credits or cannot attend school during the day. All YABCs are managed by District 79. I would assume that these schools have less funding because they are *part time* in nature. YABC schools are also supplemented by the Learning to Work program. [^12] 
 
 [^12]: https://www.schools.nyc.gov/enrollment/other-ways-to-graduate/young-adult-borough-centers
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
