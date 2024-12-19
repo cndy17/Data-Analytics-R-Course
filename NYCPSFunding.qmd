@@ -128,9 +128,11 @@ get_nycps_file <- function(fname, sheet){
 GRAD_RATES <- get_nycps_file("2023-graduation-rates-public-school", "All")
 DEMOGRAPHICS <- get_nycps_file("demographic-snapshot-2019-20-to-2023-24-public", "School")
 REGENTS <- get_nycps_file("2014-15-to-2022-23-nyc-regents-overall-and-by-category---public", "All Students")
+sample_n(REGENTS, 100) |>
+  DT::datatable()
 ```
 
-To clean the data from, I am converting characters to the numeric data type, replacing 's' with NAs, and calculating averages for graduation rates.
+In the sample Regents data above, we can see that in row 2 (P.S. 019 Judith K. Weiss in 2015), there are 's' values. To clean the data from Info Hub, I am converting characters to the numeric data type, replacing 's' with NAs, and calculating averages for graduation rates.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -180,6 +182,7 @@ grad_rates_avg <- GRAD_RATES |>
 ```
 
 **City of New York Data**
+From the City of New York, I am loading the following data files on Math and English Langage Arts (ELA) scores:
 
 - `MATH_06_23_ALL`
 
@@ -187,10 +190,13 @@ grad_rates_avg <- GRAD_RATES |>
 
 - `ECON_MATH_ELA_13_23`
 
-Here I've created a function to pull exam result data from the City of New York. 
+Here I've created a function to pull exam result data from the City of New York. I use the function to download data for ELA scores for 2006-2012 and 2013-2019, ELA scores with Economic status for 2013-2017, ELA scores on a district level for 2006-2011 and 2013-2018. 
+**ELA Score Data for 2006-12 (All Students)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| code-title: Load InfoHub Data
+#| code-title: Load Data
+#| code-summary: "View Code for 2006-2019 ELA Data Download"
+
 # Function to Get City of New York Data Files from cityofnewyork URL
 get_cony_file <- function(fname, zname, FILE_URL) {
   if(!file.exists(fname)){
@@ -203,12 +209,7 @@ get_cony_file <- function(fname, zname, FILE_URL) {
   }
   as.data.frame(read.csv(file_path))
 }
-```
 
-Below, I use the function to download data for ELA scores for 2006-2012 and 2013-2019, ELA scores with Economic status for 2013-2017, ELA scores on a district level for 2006-2011 and 2013-2018.  
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Load InfoHub Data
 # define URL and zip file name
 ELA_URL_2006 <- "https://data.cityofnewyork.us/api/views/9uqq-k6t8/files/6cb21873-4c19-42ab-aa31-13573b47ed45?download=true&filename=2006-2012%20ELA%20Test%20Results.zip"
 ELA_2006 <- "2006-2012_ELA_Test_Results.zip" # zip folder name
@@ -224,13 +225,15 @@ ELA_2013_17_ECON <- get_cony_file("2013-2017_School_ELA_Results_-_Economic.csv",
 district_ELA_1318 <- get_cony_file("2013-2018_District_ELA_Results.csv", ELA_2013_19, ELA_URL_2013_19)
 district_ELA_0611 <- get_cony_file("2006-2011_English_Language_Arts__ELA__Test_Results_by_Grade_-_District_-_All_Students.csv", ELA_2006, ELA_URL_2006)
 
-
+head(ELA_2006_12_ALL)
 ```
 
-Here, I define a function for ELA scores from 2013-2023. ELA 2013-2023 ALL
+Here, I define a function for ELA scores from 2013-2023 and download the data. 
+**ELA Score Data for 2013-23 (All Students)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| code-title: Load InfoHub Data
+#| code-title: Load Data
+#| code-summary: "View Code for 2013-2023 ELA Data Download"
 # ELA 2013-2023 Function
 get_ela_file <- function(fname, zname, sheet, FILE_URL){
   if(!file.exists(fname)){
@@ -249,13 +252,15 @@ options(timeout = 1000)
 ELA_URL_2013_23 <- "https://data.cityofnewyork.us/api/views/iebs-5yhr/files/33712362-a710-4640-a740-f6dc2c8ac991?download=true&filename=2013-2023%20ELA%20Test%20Results%20(Excel%20files).zip"
 ELA_2013_23 <- "2013-2023_ELA_Test_Results__Excel_files_.zip" # zip folder name
 ELA_2013_23_ALL <- get_ela_file("school-ela-results-2013-2023-(public).xlsx", ELA_2013_23, "All", ELA_URL_2013_23)
-
+head(ELA_2013_23_ALL)
 ```
 
-Next, I'm renaming the columns of `ELA_2006_2012_ALL` so that the column names are consistent across the ELA score data sets. This will help with binding the datasets and my analysis later on. 
+Next, I'm renaming the columns of `ELA_2006_2012_ALL` so that the column names are consistent across the ELA score data sets. This will help with binding the datasets and my analysis later on. Additionally, I am ensuring that columns such as the number, percent, and mean are numeric instead of characters. This will introduce NA where the value is 's'. After this, I can bind the ELA 2006-2012 and 2013-2023 data sets together.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
-#| code-title: Load InfoHub Data
+#| code-title: CleanData
+#| code-summary: "View Code for Cleaning ELA Data"
+#| layout-ncols: 2
 # Rename columns
 ELA_2006_12_ALL <- ELA_2006_12_ALL |>
   rename(
@@ -287,12 +292,8 @@ ELA_2013_23_ALL <- ELA_2013_23_ALL |>
     `Num.Level.3.and.4` = `# Level 3+4`,
     `Pct.Level.3.and.4` = `% Level 3+4`  
   )  
-```
 
-Additionally, I am ensuring that columns such as the number, percent, and mean are numeric instead of characters. This will introduce NA where the value is 's'. After this, I can bind the ELA 2006-2012 and 2013-2023 data sets together.
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
+# change to numeric
 ELA_2013_23_ALL <- ELA_2013_23_ALL |>
   mutate(across(
     .cols = starts_with('Num') | starts_with('Pct') | starts_with('Mean'), 
@@ -302,17 +303,29 @@ ELA_2013_23_ALL <- ELA_2013_23_ALL |>
 
 ELA_2006_12_ALL <- ELA_2006_12_ALL |>
   mutate(`School Name` = NA)
-
+head(ELA_2006_12_ALL)
+head(ELA_2013_23_ALL)
+```
+**ELA Score Data for 2006-2023 (All Students)**
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Bind Data
+#|  code-summary: "View Code for Binding ELA Data"
 ELA_2006_23_ALL <- bind_rows(
   ELA_2006_12_ALL,
   ELA_2013_23_ALL)
+
+sample_n(ELA_2006_23_ALL, 100) |>
+  DT::datatable()
 ```
 
-Below, I am loading in the Math 2006-2012, Math 2013-2023, and district level Math 2013-2023 data.
+Next, I am loading in the Math 2006-2012, Math 2013-2023, and district level Math 2013-2023 data below. To clean the math data, like with the ELA data, I am renaming the columns to ensure consistency across the data sets. I am also binding the Math 2006-2012 and 2013-2023 data sets together and converting to the appropriate data types.
+**Math Score Data for 2006-2023 (All Students)**
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Load  Data
+#| code-summary: "View Code for Loading and Cleaning Math Data"
 
 # Math 2006 - 2012 download from github link
 get_mathall_file <- function(fname){
@@ -347,17 +360,11 @@ MATH_2013_23_ALL <- get_math1323_file("04_school-math-results-2013-2023-(public)
 
 district_MATH_1323<- get_math1323_file("03_district-math-results-2013-2023-(public).xlsx", MATH_2013_23, "All", MATH_URL_2013_23)
 
-```
-
-To clean the math data, like with the ELA data, I am renaming the columns to ensure consistency across the data sets. I am also binding the Math 2006-2012 and 2013-2023 data sets together and converting to the appropriate data types. 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Load InfoHub Data
-# Bind 2006-2012 with 2013-2023
-# Math
+ # add column to match 2013-23 df
 MATH_2006_12_ALL <- MATH_2006_12_ALL |>
-  mutate(`School Name` = NA) # add column to match 2013-23 df
+  mutate(`School Name` = NA)
 
+# rename columns to match
 MATH_2013_23_ALL <- MATH_2013_23_ALL |>
   rename(
     `Grade` = `Grade`,                 
@@ -376,6 +383,7 @@ MATH_2013_23_ALL <- MATH_2013_23_ALL |>
     `Pct.Level.3.and.4` = `% Level 3+4`  
   )
 
+# Bind 2006-2012 with 2013-2023
 MATH_2006_23_ALL <- bind_rows(
   MATH_2006_12_ALL,
   MATH_2013_23_ALL) # remember School Name is NA from 2006-12
@@ -387,12 +395,17 @@ MATH_2006_23_ALL <- MATH_2006_23_ALL |>
     .fns = ~ as.numeric(.),        
     .names = '{.col}'                            
   ))
+
+sample_n(MATH_2006_23_ALL, 100) |>
+  DT::datatable()
 ```
 
 Looking through the ELA and Math datasets for all students, I noticed that the `Mean.Scale.Score` for rows where `Grade` is "All Grades" is NA. However, we can find the `Mean.Scale.Score` for "All Grades" manually by calculating the average of the `Mean.Scale.Score` for each `DBN` and `Year`. 
+**ELA Score Data for 2006-2023 (All Students)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| code-summary: "View Code for Calculating Averages"
 # Calculate the averages for the relevant columns (for Math and ELA)
 # For MATH (Calculating means by DBN and Year)
 MATH_06_23_ALL_avg <- MATH_2006_23_ALL |>
@@ -453,10 +466,18 @@ MATH_06_23_ALL <- MATH_06_23_ALL |>
 
 ELA_06_23_ALL <- ELA_06_23_ALL |>
   filter(`Grade` == "All Grades")
+
+sample_n(ELA_06_23_ALL, 100) |>
+  DT::datatable()
 ```
 
+**Math Score Data for 2006 2023 (All Students)**
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+sample_n(MATH_06_23_ALL, 100) |>
+  DT::datatable()
+```
 For the MLA and ELA scores broken down by Economic Status, again, I am downloading the data and renaming the columns to ensure consistency across the data sets. I am also joining the Math and ELA data sets together and converting the columns to the appropriate data types. 
-
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -515,7 +536,8 @@ ECON_MATH_ELA_13_23 <- MATH_ELA_2013_23_ECON |>
   filter(`Grade` == "All Grades")
 ```
 
-ELA and MATH Test Score Distribution By Student Economic Demographic
+**ELA and MATH Test Score Distribution By Student Economic Demographic**
+Below we can take a look at the distribution of the data we just downloaded and cleaned. 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -538,13 +560,15 @@ ggplot(ECON_MATH_ELA_13_23, aes(x = `Mean.Scale.Score.ela`)) +
 
 ## School Funding
 **School Funding Transparency Data**
+I am downloading the School Funding Transparency Data for 2017-2019 and 2019-2023 from the NYC InfoHub site. I will use this data to analyze the funding distribution across schools in NYC. The datasets I will be using are:
 
 - `funding_C_201823`
 
-NYC publishes School Funding Transparency Data for 2017-2019. 
+**School Funding Transparency Data for 2017-2019**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| code-summary: "View Code for Downloading School Funding Transparency Data"
 # Downloading School Funding Transparency Data 2017-2019
 get_201719_funds <- function(zname, fname, sheet){
   BASE_URL <- "https://nycenet.edu/documents/NYS/"
@@ -603,10 +627,13 @@ funding_C_201823 <- bind_rows(
 funding_C_201823 <- funding_C_201823 |>
   rename(DBN = `Local School Code`)
 
+sample_n(funding_C_201823, 1000) |>
+  DT::datatable()
 ```
 
 **Charter Schools**
-Moving on to charter schools. Charter schools are publicly funded but operate independently. While the range of scores remains similar, charter schools tend to have lower median scores compared to district-run schools. While they need to meet certain performance goals, they receive less per-pupil funding than district schools, which can impact their ability to offer additional resources and support for students. To look at charter school performance, we will use the following datasets:
+
+Moving on to charter schools, charter schools are publicly funded but operate independently. While the range of scores remains similar, charter schools tend to have lower median scores compared to district-run schools. While they need to meet certain performance goals, they receive less per-pupil funding than district schools, which can impact their ability to offer additional resources and support for students. To look at charter school performance, we will use the following datasets:
 
 - `REGENTS_CS`
 
@@ -619,6 +646,7 @@ Moving on to charter schools. Charter schools are publicly funded but operate in
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| code-summary: "View Code for Charter School Data"
 # list of charter schools: https://www.nysed.gov/charter-schools/charter-schools-directory 
 cs_url <- "https://www.nysed.gov/charter-schools/charter-schools-directory"
 cs <- read_html("https://www.nysed.gov/charter-schools/charter-schools-directory")
@@ -634,11 +662,12 @@ charter_schools_df <- data.frame(
 REGENTS_CS <- REGENTS |> filter(str_detect(`School Name`, 'Charter'))
 ```
 
-ELA and Math scores for Charter Schools is available through the City of New York. I will download the data and clean it up using the functions defined previously. 
+ELA and Math scores for Charter Schools is available through the City of New York site. I will download the data and clean it up using the functions defined previously. To clean the Charter School data, I will rename the columns to ensure consistency across the data sets. I will also convert the columns to the appropriate data types as we did with the other data sets. 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
-# Load Charter School Data
+#| code-summary: "View Code for Charter School Score Data"
+# Load Charter School Data from City of New York
 ELA_2006_12_CS <- get_cony_file("2006-2012_English_Language_Arts__ELA__Test_Results_-_Charter_Schools.csv", ELA_2006, ELA_URL_2006)
 ELA_2013_17_CS <- get_cony_file("2013-2017_Charter_School_ELA_Results_-_All.csv", ELA_2013_19, ELA_URL_2013_19)
 
@@ -677,12 +706,6 @@ MATH_URL_2013_17 <- "https://data.cityofnewyork.us/api/views/74kb-55u9/files/8c1
 MATH_2013_17 <- "2013-2017_Math_Test_Results.zip"
 MATH_2013_17_CS <- get_math_file_1317("2013-2017_Charter_School_Math_Results_-_All.csv", MATH_2013_17, MATH_URL_2013_17)
 
-```
-
-To clean the Charter School data, I will rename the columns to ensure consistency across the data sets. I will also convert the columns to the appropriate data types as we did with the other data sets. 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
 # only have CS until 2017
 rename_2013_17_CS <- function(dataframe) {
   dataframe <- dataframe|>
@@ -725,6 +748,7 @@ ELA_2006_12_CS <- charter_numeric(ELA_2006_12_CS)
 ```
 
 Here, I combine the separate years of charter school data sets for ELA and Math. I then assign a `Subject` column to then combine Math and ELA scores for charter schools into one dataframe. 
+**Charter School Math and ELA Score Data for 2006-2023**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -780,15 +804,16 @@ MATH_06_23_ALL_cs <- MATH_06_23_ALL_avg |>mutate(`Subject` = "Math", `isCharterS
 All_CS_combined <- 
   rbind(CS_200617_data, ELA_06_23_ALL_cs, MATH_06_23_ALL_cs) 
 
+sample_n(All_CS_combined, 100) |>
+  DT::datatable()
 ```
 
 ## School Expenditures
-The NYC Public School site publishes School Based Expenditure Reports for the years 2017 and 2018. I will scrape the data from the site and combine the two years into one dataset. 
+The NYC Public School site publishes School Based Expenditure Reports for the years 2017 and 2018. I will scrape the data from the site and combine the two school years into one dataset. 
 
-- `expenditure_201718`
+- `expenditure_201618`
 
-- `expenditure_201617`
-
+**School Expenditure Data for 2017 and 2018 (2016-2018 School Year)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -806,7 +831,7 @@ scrape_exp_data <- function(year) {
 }
 
 # Scrape data for 2016-2018
-# Citywide Summary for the School COunt and Title I Count
+# Citywide Summary for the School Count and Title I Count
 # Per Capita Calculation for Dollars, Enrollment, Per Capita
 expenditure_201718 <- scrape_exp_data(2018)
 expenditure_201617 <- scrape_exp_data(2017)
@@ -817,6 +842,10 @@ expenditure_201617 <- expenditure_201617 |> rename(`Year` = `2017`)
 
 expenditure_201618 <- bind_rows(expenditure_201718,
                                 expenditure_201617)
+
+
+sample_n(expenditure_201618, 76) |>
+  DT::datatable()
 ```
 
 ## District Specific Data
@@ -829,9 +858,13 @@ To perform district level analysis, I will use the following datasets:
 - `district_spending_0412`
 
 The New York Fed website has school funding data by district and borough for 2004 - 2012. I will pair that with Math and ELA scores by district for 2006 - 2012 from the City of New York.
+**District Spending Data for 2004-2012**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
+#| code-summary: "View Code for District Specific Data"
+
+# District Spending
 FILE_URL = "https://www.newyorkfed.org/medialibrary/interactives/nyc-school-spending/nyc-school-spending/downloads/csd_expend.xlsx?v=1.0.0"
 fname <- "csd_expend.xlsx"
   if(!file.exists(fname)){
@@ -839,18 +872,20 @@ fname <- "csd_expend.xlsx"
                   destfile = fname)
   }
 district_spending_0412 <- as.data.frame(read_excel(fname, sheet = "Sheet1"))
-```
 
-```{r, echo = TRUE, message = FALSE, warning = FALSE}
-#| code-fold: true
-#| code-title: Code
+# District Scores
 district_ELA_2006_12 <- get_cony_file("2006-2012_English_Language_Arts__ELA__Test_Results_-_District_-_All_Students.csv", ELA_2006, ELA_URL_2006)
+
 district_ELA_2006_12 <- district_ELA_2006_12 |>
   filter(`Grade` == 'All Grades')
 
 district_MATH_2006_12 <- get_math_file("2006_-_2012__Math_Test_Results_-_District_-_All_Students.csv", MATH_2006_12, MATH_URL_2006_12)
 district_MATH_2006_12 <- district_MATH_2006_12 |>
   filter(`Grade` == 'All Grades')
+
+
+sample_n(district_spending_0412, 100) |>
+  DT::datatable()
 ```
 
 ## NYC Shapefiles
@@ -872,6 +907,12 @@ zip_contents <- unzip("nysd_24d.zip",
     
 fname_shp <- zip_contents[grepl("shp$", zip_contents)]
 nyc_sf <- read_sf(fname_shp)
+
+# Display Map
+ggplot(data = nyc_sf) +
+  geom_sf() +
+  theme_minimal() +
+  labs(title = "NYC Shapefile Map")
 ```
 
 # Initial Overview
@@ -881,6 +922,8 @@ Summary Statistics for Academic Performance Metrics
 #| code-fold: true
 #| code-title: Code
 #| layout-ncol: 2
+#| layout-spacing: normal
+#| code-summary: "View Code for Summary Statistics for Academic Performance Metrics"
 
 grad_rates_summary <- GRAD_RATES |>
   summarise(
@@ -1168,6 +1211,70 @@ top_funding_table
 
 ```
 
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+#| code-summary: "View Code for List of District 75 Schools"
+
+library(rvest)
+library(dplyr)
+
+# URL of the page to scrape
+url <- "https://www.newyorkschools.com/districts/nyc-district-75.html"
+
+# Read the HTML of the webpage
+webpage <- read_html(url)
+
+# Extract school names from anchor tags in the .pp-col-40 class
+school_names <- webpage |>
+  html_nodes(".pp-col-40 a") |>
+  html_text(trim = TRUE)
+
+# Clean up by removing any unwanted header (e.g., "School Name")
+school_names <- school_names[!grepl("School Name", school_names)]
+school_names <-as.data.frame(school_names)
+
+# Print the list of school names
+sample_n(school_names, 57) |>
+  DT::datatable()
+```
+
+**Schools With the Least Funding**
+We see that Young Adult Borough Centers (YABC) schools are receiving the least funding. YABC schols are typically part time, afternoon, and night programs for high schoolers who are behind in credits or cannot attend school during the day. [^12] All YABCs are managed by District 79. I would assume that these schools have less funding because they are *part time* in nature. YABC schools are also supplemented by the Learning to Work program.
+[^12]: https://www.schools.nyc.gov/enrollment/other-ways-to-graduate/young-adult-borough-centers
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+#| code-summary: "View Code for Schools with the Least Funding"
+avg_funding_per_school <- funding_C_201823 |>
+  group_by(`School Name`) |>
+  summarize(`Average Funding` = mean(`Total School Funding per Pupil`, na.rm = TRUE))|>
+  arrange((`Average Funding`)) 
+
+lowest_funding_table <- avg_funding_per_school |>
+  head(10) |>  
+  gt() |>  
+  tab_header(
+    title = "Bottom 10 Schools with Lowest Average Total Funding per Pupil"
+  ) |> 
+  cols_label(
+    `School Name` = "School Name",
+    `Average Funding` = "Average Funding per Pupil"
+  ) |> 
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(columns = vars(`School Name`, `Average Funding`))
+  ) |> 
+  tab_style(
+    style = cell_borders(sides = "bottom", weight = px(2)),
+    locations = cells_body(columns = vars(`School Name`, `Average Funding`))
+  )
+
+lowest_funding_table
+
+```
+
+
 ## Funding Allocation
 **Classroom Teacher Salary Allocation**
 
@@ -1190,9 +1297,8 @@ ggplot(teacher_salary, aes(x = Year, y = Mean_Classroom_Teachers)) +
   scale_y_continuous(labels = scales::comma) +  # Format y-axis without scientific notation
   theme_minimal()
 ```
+
 Here we see that increasing funding for classroom teachers can boost student performance, but only up to a certain point.
-
-
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
@@ -1569,7 +1675,8 @@ ggplot(regents_funding_na, aes(x = `Total_School_Funding_per_Pupil`, y = `Mean_S
 ```
 
 ## Charter Schools
-Do charter schools receive more funding and how are their funds spent?
+**Are there certain schools that are more likely to be successful in obtaining sources of funding?**
+**Do charter schools receive more funding and how are their funds spent?**
 Moving on to charter schools. Charter schools are publicly funded but operate independently. 
 Charter school funding averages 30% less than traditional public schools. Charter schools in major cities received, on average, $7,147 less per pupil during the 2019-20 school year, a new study finds.[^4] While they need to meet certain performance goals, they receive less per-pupil funding than district schools, which can impact their ability to offer additional resources and support for students. The range of scores remains similar to that ofnon charter schools, however, charter schools have a lower median score in comparison to district-run schools.
 
@@ -1619,10 +1726,114 @@ ggplot(All_CS_combined, aes(x = isCharterSchool, y = Mean.Scale.Score, fill = is
   )
 ```
 
-## Are there certain schools that are more likely to be successful in obtaining sources of funding? 
 As we saw above, the majority of public school funding comes from state and local sources with local resources filling the gap between State aid and the cost of instruction. The data we are using in this analysis, however, does not distinguish between State and Local funding. As we can see from the Rockefeller Institute's report, 54% of education revenue was local.[^5] This is a significant portion of funding that is not distinguished in this analysis. 
 
 [^5]: https://rockinst.org/wp-content/uploads/2024/12/2024-12-Foundation-Aid-Report.pdf
+
+## Specialized High Schools
+**Are there certain schools that are more likely to be successful in obtaining sources of funding?**
+**Do charter schools receive more funding and how are their funds spent?**
+In addition to Charter Schools, New York City has eight specialized high schools. One of which is The Bronx High School of Science that focuses on science, technology, engineering, and mathematics (STEM) education.
+DBN: X445
+District: 10
+Grades: 9–12
+Admission: Based on the Specialized High Schools Admissions Test (SHSAT) score
+
+Below we can see the funding amounts of these specialized high schools in 2018 and 2019. The median of funding across all schools is 26048.28, whereas the median funding across the specialized high schools is 17248.25.
+```{r, echo = TRUE, message = FALSE, warning = FALSE} 
+#| code-fold: true 
+#| code-title: Code
+#| layout-ncol: 2
+#| code-summary: "View Code for Comparison of Specialized HS Funding"
+
+# filter for DBN of specialised high schools
+specialized_hs_funding <- funding_C_201823 |>
+  filter(DBN %in% c("X445", "K449", "K430", "M485", " M692", "X696", "Q687", "R605", "M475"))
+
+ggplot(specialized_hs_funding, aes(x = `DBN`, y = `Total School Funding per Pupil`, fill = factor(Year))) +  
+  geom_col(position = "dodge", color = "white", size = 1) +  
+  labs(
+    title = "Total School Funding per Pupil for Specialized High Schools", 
+    x = "School",
+    y = "Total School Funding per Pupil"
+  ) +
+  scale_y_continuous(labels = comma) +  
+  scale_fill_brewer(palette = "Set4") +  
+  theme_minimal() +  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  
+    axis.text = element_text(size = 12),  
+    axis.title = element_text(size = 14)
+  )
+
+# see if schools are above or below average funding for overall schools
+overall_median_funding <- median(funding_C_201823$`Total School Funding per Pupil`, na.rm = TRUE)
+shs_median_funding <- median(specialized_hs_funding$`Total School Funding per Pupil`, na.rm = TRUE)
+
+total_schools <- nrow(specialized_hs_funding)
+above_median_count <- sum(specialized_hs_funding$Above_Median, na.rm = TRUE)
+percentage_above_median <- (above_median_count / total_schools) * 100
+median_values <- data.frame(
+  Statistic = c("Overall Median Funding", "Specialized HS Median Funding", "Specialized HS with Funding Above Overall Median Funding"),
+  Value = c(paste0("$",round(overall_median_funding, 2)), paste0("$", round(shs_median_funding, 2)), paste0(round(percentage_above_median, 2), "%"))
+)
+
+# Create the table using gt
+median_values |>
+  gt() |>
+  cols_label(
+    Statistic = "Statistic",
+    Value = "Value"
+  ) |>
+  tab_header(
+    title = "Comparison of Median Funding and Percentage of Schools Above Median"
+  ) |>
+  fmt_number(
+    columns = vars(Value),
+    decimals = 2  
+  )
+```
+Despite a lower median funding, specialized high schools maintain a higher level of academic performance. The specialized high schools have a higher mean score on the Regents exams compared to non-specialized high schools across the regents exams.
+```{r, echo = TRUE, message = FALSE, warning = FALSE} 
+#| code-fold: true 
+#| code-title: Code
+#| code-summary: "View Code for Specialized HS Regents Scores"
+
+# note: the specialized high schools have different school codes in the REGENTS df than the funding df
+# Create a new column for School Type (Specialized vs Non-Specialized)
+SHS_REGENTS <- REGENTS |>
+  mutate(School_Type = ifelse(DBN %in% c("10X445", "14K449", "13K430", "03M485", "05M692", "10X696", "28Q687", "31R605", "02M475"),
+                              "Specialized High Schools", "Non-Specialized High Schools")) |>
+    filter(!is.na(`Mean Score`))
+
+REGENTS_mean <- SHS_REGENTS |>
+  group_by(`Regents Exam`, School_Type) |>
+  summarise(Mean_Score = mean(`Mean Score`, na.rm = TRUE))
+
+
+# plot the regents scores and compare with non specialized high school
+ggplot(REGENTS_mean, aes(x = School_Type, y = `Mean_Score`, fill = School_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(`Mean_Score`, 1)), 
+            position = position_dodge(width = 0.9), 
+            vjust = 1.5, 
+            color = "white", 
+            size = 3) +
+  labs(
+    title = "Comparison of Mean Regents Scores by School Type",
+    x = "School Type",
+    y = "Mean Score"
+  ) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14)
+  ) +
+  facet_wrap(~ `Regents Exam`, scales = "fixed") +
+  ylim(0, 100)
+```
 
 # Spending
 ## How does city-wide, district-wide, and school-wide per-pupil spending relate to academic performance? 
