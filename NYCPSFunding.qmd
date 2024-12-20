@@ -903,7 +903,6 @@ sample_n(district_spending_0412, 100) |>
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 #| code-title: Code
-#| layout-ncol: 2
 #| layout-spacing: normal
 #| code-summary: "View Code for Ridge Plot"
 # order by district `csd`

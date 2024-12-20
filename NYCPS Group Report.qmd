@@ -2,7 +2,7 @@
 title: Academic Performance in New York City Public Schools
 authors: Cindy Li, Edosa Odia, Gautam Sharma, Fatima Wong
 ---
-![](https://images.squarespace-cdn.com/content/v1/50dcbaa5e4b00220dc74e81f/1618508418344-S752DMNVSWU67DC0TRYZ/NYC_DOE_Logo+%2B+Lets-talk-change-wb.jpg)
+![](https://static01.nyt.com/images/2018/06/18/nyregion/18screen-p1/merlin_139399233_bec799c9-c646-411e-b410-ea364a8f620e-superJumbo.jpg)
 
 # Overarching Question: What factors are impacting overall academic performance in New York City’s public high schools?
 
@@ -58,9 +58,11 @@ As mentioned, prior research has identified several factors to student learning 
 Research by Phyllis Resnick, one of the co-founders of the Colorado Futures Center, emphasizes the importance of early literacy, noting that students who are not reading at grade level by third grade face increased risks of academic and professional setbacks. This underscores the significance of early interventions to close achievement gaps before they widen. The relationship between school funding and academic performance remains contentious, though studies suggest that increased funding, especially in underserved areas, tends to improve outcomes—particularly when directed toward teacher quality and learning resources.
 
 ![](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSd0eTpPAiNLNqNwYcR2gKMisdJzUTioFXObg&s){width="100"}
+
 The Brookings Institution has conducted research on education across the US. Its studies show mixed results on the impact of class sizes. While smaller class sizes in Texas correlate with improved outcomes, research in other states like Florida and Connecticut has shown little effect, suggesting that class size impacts may depend on local context, such as teacher quality and student needs. Its research also shed light on gender disparities in graduation rates across the US, with girls consistently outperforming boys in high school completion. In 2021, 88.4% of girls graduated on time compared to 81.9% of boys, a trend seen across multiple states.
 
 ![](https://keystoneacademic-res.cloudinary.com/image/upload/f_auto/q_auto/g_auto/w_200/dpr_2.0/element/11/119400_NYULogo1000x.jpg){width="100"}
+
 The Research Alliance for New York City Schools by Steinhardt NYU found that English language learners (ELLs) in high school often face barriers to accessing advanced coursework, but the achievement gaps for ELLs narrow over time with targeted interventions. Attendance is another factor identified by the Research Alliance. Additionally, the highest rates of absenteeism are found in the city’s most impoverished neighborhoods.
 
 # Data Sources
@@ -96,7 +98,7 @@ Also, notably while ELL students show a graduation rate of approximately 50%, th
 
 Lastly, The neighborhoods of BedStuy, Brownsville, and Bushwick, corresponding to districts 16, 23, and 18 respectively, unfortunately display the lowest graduation and attendance rates, a trend likely worsened by local economic conditions. Targeted academic outreach programs are necessary in these districts in order to achieve academic success and provide equitable opportunities for all students.
 
-![]((https://edodia.github.io/STA9750-2024-FALL/Attendance-GraduationRates_files/figure-html/unnamed-chunk-22-1.png)
+![](https://edodia.github.io/STA9750-2024-FALL/Attendance-GraduationRates_files/figure-html/unnamed-chunk-22-1.png)
 
 ## School Characteristics and Academic Performance
 
@@ -132,7 +134,7 @@ Above, we can see a map that shows the distribution of per-pupil funding across 
 
 ![](https://cndy17.github.io/STA9750-2024-FALL/NYCPSFunding_files/figure-html/unnamed-chunk-28-2.png)
 
-In fact, more funding in this case tends to reflect a need to support students with higher academic or social needs and we actually see lower scores for schools with greater funding. This is reflective of the FSF formula weighting for student need. For instance, the top funded schools are NYC public schools serving students with special needs and circumstances. Additionally, the analysis showed that specialized high schools and charter schools do not receive more funding than average of all school funding. So, while funding is critical, we may not see its impacts on student achievement yet as the funds are meant to bring about equity. 
+In fact, more funding in this case tends to reflect a need to support students with higher academic or social needs and we actually see lower scores for schools with greater funding. This is reflective of the FSF formula weighting for student need. For instance, the top funded schools are NYC public schools serving students with special needs and circumstances. Additionally, the analysis showed that specialized high schools do not receive more funding than the median of all school funding, yet specialized high schools outperform non-specialized high schools. So, while funding is critical, we may not see its impacts on student achievement yet as the funds are meant to bring about equity. 
 
 ![](https://cndy17.github.io/STA9750-2024-FALL/NYCPSFunding_files/figure-html/unnamed-chunk-36-1.png)
 
