@@ -1,6 +1,9 @@
 ---
 title: "New York City Public Schools Funding & Spending"
 author: "Cindy Li"
+format:
+  html:
+    toc: true
 ---
 
 ![](https://www.bxtrumanhighschool.com/wp-content/uploads/2023/08/nycps-logo.png)
@@ -1881,7 +1884,7 @@ ggplot(REGENTS_mean, aes(x = School_Type, y = `Mean_Score`, fill = School_Type))
 ```
 
 # Spending
-## How does city-wide, district-wide, and school-wide per-pupil spending relate to academic performance? 
+**How does city-wide, district-wide, and school-wide per-pupil spending relate to academic performance?**
 
 In the code below, I start by merging two datasets on district and year: `district_spending_0412` (school district spending data) with two academic performance datasets: `district_ELA_2006_12` and `district_MATH_2006_12.`
 I filter out the years 2004 and 2005 are excluded due to incomplete academic performance data for these years. Joining with the nyc shapefile, we can map the spending data by district. 
