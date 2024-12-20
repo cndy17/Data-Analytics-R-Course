@@ -115,7 +115,7 @@ Certain characteristics significantly contribute to better academic outcomes:
   
 **Resource Disparities and Academic Performance**
 
-![](https://gautam-1-r.github.io/STA9750-2024-FALL/project_files/figure-html/unnamed-chunk-4-1.png )
+![](https://gautam-1-r.github.io/STA9750-2024-FALL/project_files/figure-html/unnamed-chunk-4-1.png)
 
 Specialized schools receive private alumni donations, enabling them to provide higher-quality programs and extracurricular activities. Charter schools also suffer from funding inequities: some have decent budgets that enable them to draw qualified teachers and create challenging courses, while others-often in the poorest areas-experience severe resource constraints resulting in uneven learning opportunities for children.
 
@@ -127,10 +127,10 @@ Mental health services are essential in ensuring academic success, enhancing stu
 
 ![](https://cndy17.github.io/STA9750-2024-FALL/images/spending_map_0412.gif) 
 
-Above, we can see a map that shows the distribution of per-pupil funding across NYC public schools. Over the years, we’ve seen public school funding increase across NYC as a whole. Since 2007, the schools have been funded according to the “Fair Student Funding” formula, aimed at allocating resources based on student enrollment and student needs. When we dive into the purpose of funding received, the majority of a school’s funding goes to classroom teacher salaries. While increasing funding for classroom teachers can boost student performance, this is observed only to a certain point, as seen below.
+Above, we can see a map that shows the distribution of per-pupil funding across NYC public schools. Over the years, we’ve seen public school funding increase across NYC as a whole. Since 2007, the schools have been funded according to the “Fair Student Funding” formula, aimed at allocating resources based on student enrollment and student needs. When we dive into the purpose of funding received, the majority of a school’s funding goes to classroom teacher salaries. While increasing funding for classroom teachers can boost student performance, this is observed only to a certain point.
 
 
-![](https://cndy17.github.io/STA9750-2024-FALL/NYCPSFunding_files/figure-html/unnamed-chunk-28-1.png)
+![](https://cndy17.github.io/STA9750-2024-FALL/NYCPSFunding_files/figure-html/unnamed-chunk-28-2.png)
 
 In fact, more funding in this case tends to reflect a need to support students with higher academic or social needs and we actually see lower scores for schools with greater funding. This is reflective of the FSF formula weighting for student need. For instance, the top funded schools are NYC public schools serving students with special needs and circumstances. Additionally, the analysis showed that specialized high schools and charter schools do not receive more funding than average of all school funding. So, while funding is critical, we may not see its impacts on student achievement yet as the funds are meant to bring about equity. 
 
