@@ -67,6 +67,7 @@ if (!require("viridis")) install.packages("viridis")
 if (!require("corrplot")) install.packages("corrplot")
 if (!require("caret")) install.packages("caret")
 if (!require("ggpmisc")) install.packages("ggpmisc")
+if (!require("ggridges")) install.packages("ggridges")
 
 library(readr)
 library(sf)
@@ -88,6 +89,8 @@ library(viridis)
 library(corrplot)
 library(caret)
 library(ggpmisc)
+library(ggridges)
+
 ```
 
 ### Economically Disadvantaged
@@ -191,6 +194,7 @@ From the City of New York, I am loading the following data files on Math and Eng
 - `ECON_MATH_ELA_13_23`
 
 Here I've created a function to pull exam result data from the City of New York. I use the function to download data for ELA scores for 2006-2012 and 2013-2019, ELA scores with Economic status for 2013-2017, ELA scores on a district level for 2006-2011 and 2013-2018. 
+
 **ELA Score Data for 2006-12 (All Students)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -229,6 +233,7 @@ head(ELA_2006_12_ALL)
 ```
 
 Here, I define a function for ELA scores from 2013-2023 and download the data. 
+
 **ELA Score Data for 2013-23 (All Students)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -306,6 +311,7 @@ ELA_2006_12_ALL <- ELA_2006_12_ALL |>
 head(ELA_2006_12_ALL)
 head(ELA_2013_23_ALL)
 ```
+
 **ELA Score Data for 2006-2023 (All Students)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -320,6 +326,7 @@ sample_n(ELA_2006_23_ALL, 100) |>
 ```
 
 Next, I am loading in the Math 2006-2012, Math 2013-2023, and district level Math 2013-2023 data below. To clean the math data, like with the ELA data, I am renaming the columns to ensure consistency across the data sets. I am also binding the Math 2006-2012 and 2013-2023 data sets together and converting to the appropriate data types.
+
 **Math Score Data for 2006-2023 (All Students)**
 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
@@ -401,6 +408,7 @@ sample_n(MATH_2006_23_ALL, 100) |>
 ```
 
 Looking through the ELA and Math datasets for all students, I noticed that the `Mean.Scale.Score` for rows where `Grade` is "All Grades" is NA. However, we can find the `Mean.Scale.Score` for "All Grades" manually by calculating the average of the `Mean.Scale.Score` for each `DBN` and `Year`. 
+
 **ELA Score Data for 2006-2023 (All Students)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -471,12 +479,14 @@ sample_n(ELA_06_23_ALL, 100) |>
   DT::datatable()
 ```
 
+
 **Math Score Data for 2006 2023 (All Students)**
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
 sample_n(MATH_06_23_ALL, 100) |>
   DT::datatable()
 ```
+
 For the MLA and ELA scores broken down by Economic Status, again, I am downloading the data and renaming the columns to ensure consistency across the data sets. I am also joining the Math and ELA data sets together and converting the columns to the appropriate data types. 
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -890,6 +900,28 @@ district_MATH_2006_12 <- district_MATH_2006_12 |>
 sample_n(district_spending_0412, 100) |>
   DT::datatable()
 ```
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+#| code-fold: true
+#| code-title: Code
+#| layout-ncol: 2
+#| layout-spacing: normal
+#| code-summary: "View Code for Ridge Plot"
+# order by district `csd`
+district_spending_0412 <- district_spending_0412 |>
+  arrange(csd)
+
+ggplot(district_spending_0412, aes(x = grand_total_csd, y = as.factor(boro), fill = as.factor(boro))) +
+  geom_density_ridges() +
+  theme_ridges() + 
+  labs(title = 'Total Spending per District', y = 'boro', x = 'Total Spending ($)') +
+  theme(legend.position = "none",
+      panel.spacing = unit(1, "lines"),
+      strip.text.x = element_text(size = 8),
+      axis.text.y = element_text(size = 8),
+    axis.title.y = element_text(size = 8)
+    ) 
+
+```
 
 ## NYC Shapefiles
 To visualize the data, I am using a NYC shapefile downloaded from NYC Gov and reading it into an `sf` object. 
@@ -919,7 +951,6 @@ ggplot(data = nyc_sf) +
 ```
 
 # Initial Overview
-## Academic Performance
 Summary Statistics for Academic Performance Metrics
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 #| code-fold: true
@@ -1115,37 +1146,40 @@ Student needs are “weighted” based on the cost of meeting a student's educat
 
 **Fair Student Funding Weights**
 The NYC Department of Education shares details its method to determine the needs of students as such[^10]:
-Academic Intervention:
+
+Academic Intervention
 
 - Poverty for schools beginning before 4th grade. 
 
-- Lower student achievement where incoming test scores predict academic need.
+- Lower student achievement (incoming test scores)
 
 - Over-Age Under-Credited ‘Over The Counter’ (OTC) status.
 
-English Language Learner status, based on:
+English Language Learner Status
 
 - Students in English as a New Language (ENL) and Bilingual programs.
 
 - Students with interrupted formal education (SIFE).
 
-Special Education, based on:
-- Students with special instruction through Individualized Education Programs (IEPs).
+Special Education
 
-- Special education periods mandated per week and the intensity of those services.
+- Individualized Education Programs (IEPs).
 
-Students in Temporary Housing, based on:
+- Special education periods mandated per week.
 
-- Families reported living in Doubled Up, Shelter, Hotel/Motel, or Other Temporary Living Situation on the Housing Questionnaire.
+Students in Temporary Housing
 
-High schools also have additional weights: 
+- Self-reported living situation on the Housing Questionnaire.
+
+Additional High School Weights: 
+
 - Career and Technical Education (CTE) Designated High Schools
 
 - Specialized Academic: including higher course/credit loads and AP courses.
 
-- Specialized Audition: performance audition or a portfolio review, Arts Endorsed Diploma
+- Specialized Audition: audition or portfolio review, Arts Endorsed Diploma
 
-- Transfer: re-engage students who have dropped out or are over-age and under-credited for their grade
+- Transfer: re-engage drop out or over-age/under-credit students
 
 [^10]: https://www.schools.nyc.gov/about-us/funding/funding-our-schools/fair-student-funding-fsf 
 
@@ -1804,6 +1838,7 @@ median_values |>
     decimals = 2  
   )
 ```
+
 Despite a lower median funding, specialized high schools maintain a higher level of academic performance. The specialized high schools have a higher mean score on the Regents exams compared to non-specialized high schools across the regents exams.
 ```{r, echo = TRUE, message = FALSE, warning = FALSE} 
 #| code-fold: true 
@@ -2048,7 +2083,6 @@ ggplot(district_spending_MATH, aes(x = classroom_csd, y = Mean.Scale.Score)) +
   ) +
   theme_minimal()
 ```  
-
 
 # Conclusion
 
