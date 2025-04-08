@@ -23,7 +23,7 @@ A comparison of CUNY retirement plans using simulation and Monte Carlo analysis,
 
 Analysis of the effect of the US Electoral College on US Presidential elections, comparing different ways that states allocate their Electoral College Votes to determine whether this has any effect on who is elected the President of these United States. Visualizes spatial data, working with official electoral records, and accessing public data repositories, such as those of the US Census Bureau. 
 
-[View Report](https://cndy17.github.io/STA9750-2024-FALL/mp03.html)
+[View Report](https://cndy17.github.io/Data-Analytics-R-Course/mp03.html)
 
 ### Proposing a Successful Film
 
@@ -31,7 +31,7 @@ Analysis of the effect of the US Electoral College on US Presidential elections,
 
 An investigation of imdb data to act as Hollywood development executives, diving deep into Hollywood history to develop a pitch for a new movie. Working with large data and relational data structures 
 
-[View Report](https://cndy17.github.io/STA9750-2024-FALL/mp02.html)
+[View Report](https://cndy17.github.io/Data-Analytics-R-Course/mp02.html)
 
 ### Fiscal Characteristics of Major US Public Transit Systems
 
